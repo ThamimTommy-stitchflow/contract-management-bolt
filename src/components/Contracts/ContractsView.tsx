@@ -7,6 +7,7 @@ import { calculateTotalContractValue } from '../../utils/contractCalculations';
 import { ContractHeader } from './ContractHeader';
 import { RenewalCountdown } from './RenewalCountdown';
 import { ContractDetails } from './ContractDetails';
+import { ServiceRow } from './ServiceRow';
 import type { SortOption } from './ContractSort';
 
 interface ContractsViewProps {
@@ -22,7 +23,7 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
   const sortedContracts = sortContracts(groupedContracts, sortBy);
   const totalContractValue = calculateTotalContractValue(groupedContracts);
 
-  if (contracts.length === 0) {
+  if (!contracts || contracts.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
         <p className="text-gray-500">
@@ -115,14 +116,10 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {group.services.map((service) => (
-                          <tr key={service.serviceId}>
-                            <td className="px-4 py-2 text-sm text-gray-900">{service.serviceName}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500">{service.licenseType}</td>
-                            <td className="px-4 py-2 text-sm text-gray-500">{service.pricingModel}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{service.costPerUser ? `$${service.costPerUser}` : '-'}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{service.numberOfLicenses || '-'}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{service.totalCost ? `$${service.totalCost}` : '-'}</td>
-                          </tr>
+                          <ServiceRow 
+                            key={`${group.appId}-${service.serviceId}`} 
+                            service={service} 
+                          />
                         ))}
                       </tbody>
                     </table>

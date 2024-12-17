@@ -3,6 +3,7 @@ import { ContractRecord } from '../types/contracts';
 import { SelectedApp } from '../types/app';
 import { contractService } from '../services/contracts';
 import { useCompany } from '../contexts/CompanyContext';
+import { transformContractResponse } from '../utils/contractTransformer';
 
 export function useContractStorage() {
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
@@ -15,7 +16,8 @@ export function useContractStorage() {
       
       try {
         const response = await contractService.getCompanyContracts(company.id);
-        setContracts(response);
+        const transformedContracts = response.map(transformContractResponse);
+        setContracts(transformedContracts);
       } catch (error) {
         console.error('Failed to load contracts:', error);
       }
@@ -41,7 +43,14 @@ export function useContractStorage() {
             overallTotalValue: app.contractDetails.overallTotalValue || '',
             notes: app.contractDetails.notes || '',
             contactDetails: app.contractDetails.contactDetails || '',
-            services: app.contractDetails.services || [],
+            services: app.contractDetails.services.map(service => ({
+              name: service.name,
+              licenseType: service.licenseType,
+              pricingModel: service.pricingModel,
+              costPerUser: service.costPerUser,
+              numberOfLicenses: service.numberOfLicenses,
+              totalCost: service.totalCost
+            })),
             stitchflowConnection: app.contractDetails.stitchflowConnection || null
           }
         };
@@ -52,7 +61,7 @@ export function useContractStorage() {
           company.id
         );
         
-        updatedContracts.push(updatedContract);
+        updatedContracts.push(transformContractResponse(updatedContract));
       }
       
       setContracts(updatedContracts);

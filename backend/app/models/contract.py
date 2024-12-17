@@ -25,18 +25,18 @@ class ServiceBase(BaseModel):
     total_cost: Optional[float] = Field(None, ge=0)
 
     @field_validator('total_cost')
-    def validate_total_cost(cls, v, values):
+    def calculate_total_cost(cls, v, values):
         cost = values.data.get('cost_per_user')
         licenses = values.data.get('number_of_licenses')
         if cost is not None and licenses is not None:
-            calculated = cost * licenses
-            if v is not None and abs(v - calculated) > 0.01:  # Allow small float difference
-                raise ValueError('Total cost must match cost_per_user * number_of_licenses')
+            expected = cost * licenses
+            if v is not None and abs(v - expected) > 0.01:
+                v = expected
         return v
 
 class ContractBase(BaseModel):
-    app_id: str
     company_id: str
+    company_app_id: str  # This references company_apps table
     renewal_date: Optional[date] = None
     review_date: Optional[date] = None
     overall_total_value: Optional[float] = Field(None, ge=0)
@@ -44,8 +44,12 @@ class ContractBase(BaseModel):
     notes: Optional[str] = None
     contact_details: Optional[str] = None
     stitchflow_connection: str = "CSV Upload/API coming soon"
+    contract_file_path: Optional[str] = None
 
 class ServiceCreate(ServiceBase):
+    pass
+
+class ServiceUpdate(ServiceBase):
     pass
 
 class ServiceResponse(ServiceBase, BaseDBModel):

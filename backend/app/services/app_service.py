@@ -69,8 +69,16 @@ class AppService:
             raise
 
     async def unselect_app(self, company_id: str, app_id: str) -> bool:
-        """Remove an app selection for a company"""
+        """Remove an app selection and associated contracts for a company"""
         try:
+            # First delete associated contracts and services
+            self.db.table('contracts')\
+                .delete()\
+                .eq('company_id', company_id)\
+                .eq('app_id', app_id)\
+                .execute()
+            
+            # Then delete the company_app record
             response = self.db.table('company_apps')\
                 .delete()\
                 .eq('company_id', company_id)\

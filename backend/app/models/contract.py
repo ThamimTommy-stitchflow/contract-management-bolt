@@ -1,8 +1,9 @@
 from enum import Enum
 from typing import Optional, List
 from datetime import date
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from .base import BaseDBModel
+import json
 
 class LicenseType(str, Enum):
     MONTHLY = "Monthly"
@@ -36,7 +37,7 @@ class ServiceBase(BaseModel):
 
 class ContractBase(BaseModel):
     company_id: str
-    company_app_id: str  # This references company_apps table
+    app_id: str 
     renewal_date: Optional[date] = None
     review_date: Optional[date] = None
     overall_total_value: Optional[float] = Field(None, ge=0)
@@ -44,7 +45,26 @@ class ContractBase(BaseModel):
     notes: Optional[str] = None
     contact_details: Optional[str] = None
     stitchflow_connection: str = "CSV Upload/API coming soon"
-    contract_file_path: Optional[str] = None
+    contract_file_url: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def validate_dates(cls, values):
+        # Convert string dates to date objects if they're strings
+        if isinstance(values.get('renewal_date'), str):
+            values['renewal_date'] = date.fromisoformat(values['renewal_date'])
+        if isinstance(values.get('review_date'), str):
+            values['review_date'] = date.fromisoformat(values['review_date'])
+        return values
+
+    def model_dump(self, **kwargs):
+        data = super().model_dump(**kwargs)
+        # Convert dates to ISO format strings
+        if data.get('renewal_date'):
+            data['renewal_date'] = data['renewal_date'].isoformat()
+        if data.get('review_date'):
+            data['review_date'] = data['review_date'].isoformat()
+        return data
 
 class ServiceCreate(ServiceBase):
     pass

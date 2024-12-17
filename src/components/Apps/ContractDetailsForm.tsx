@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { ContractDetails, ServiceDetails } from '../../types/app';
-import { apps as availableApps } from '../../data/apps';
 import { FormInput, FormLabel, FormSelect, FormTextArea } from './FormElements';
 import { ServiceGroup } from './ServiceGroup';
 import { createDefaultService } from '../../utils/serviceUtils';
@@ -32,6 +31,8 @@ export function ContractDetailsForm({
     contactDetails: '',
     ...initialDetails
   }));
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleServiceChange = (index: number, service: ServiceDetails) => {
     const services = [...(details.services || [])];
@@ -72,7 +73,6 @@ export function ContractDetailsForm({
     const date = value ? formatDate(new Date(value)) : '';
     const newDetails = { ...details, [field]: date };
 
-    // If renewal date is changed, calculate review date
     if (field === 'renewalDate' && date) {
       const reviewDate = calculateReviewDate(date);
       newDetails.reviewDate = reviewDate;
@@ -88,8 +88,18 @@ export function ContractDetailsForm({
     onChange(newDetails);
   };
 
-  const isPreDefinedApp = availableApps.some(app => app.id === appId);
-  const stitchflowConnection = isPreDefinedApp ? 'API Supported' : 'CSV Upload/API coming soon';
+  const handleSaveClick = async () => {
+    try {
+      setIsSaving(true);
+      setError(null);
+      await onSave();
+    } catch (error) {
+      setError('Failed to save contract details. Please try again.');
+      console.error('Error saving contract:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (!details.services) {
     return null;
@@ -97,16 +107,11 @@ export function ContractDetailsForm({
 
   return (
     <div className="space-y-6">
-      <div>
-        <FormLabel>Stitchflow Connection</FormLabel>
-        <div className={`px-4 py-2.5 rounded-lg border ${
-          isPreDefinedApp 
-            ? 'bg-green-50 border-green-200 text-green-700 font-medium'
-            : 'bg-yellow-50 border-yellow-200 text-yellow-700 font-medium'
-        }`}>
-          {stitchflowConnection}
+      {error && (
+        <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg">
+          {error}
         </div>
-      </div>
+      )}
 
       <div className="space-y-4">
         {details.services.map((service, index) => (
@@ -189,14 +194,20 @@ export function ContractDetailsForm({
         <button
           onClick={onCancel}
           className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          disabled={isSaving}
         >
           Cancel
         </button>
         <button
-          onClick={onSave}
-          className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          onClick={handleSaveClick}
+          disabled={isSaving}
+          className={`px-4 py-2 text-white rounded-lg transition-colors ${
+            isSaving 
+              ? 'bg-blue-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
         >
-          Save
+          {isSaving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </div>

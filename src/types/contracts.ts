@@ -12,15 +12,15 @@ export interface ContractRecord {
   serviceName: string;
   licenseType: LicenseType;
   pricingModel: PricingModel;
-  costPerUser: string;
-  numberOfLicenses: string;
-  totalCost: string;
-  overallTotalValue: string;
-  renewalDate: string;
-  reviewDate: string;
-  contractFileUrl?: string;
-  notes: string;
-  contactDetails: string;
+  costPerUser: number | null;
+  numberOfLicenses: number | null;
+  totalCost: number | null;
+  overallTotalValue: number | null;
+  renewalDate: string | null;
+  reviewDate: string | null;
+  contractFileUrl?: string | null;
+  notes: string | null;
+  contactDetails: string | null;
   stitchflowConnection: StitchflowConnection;
 }
 

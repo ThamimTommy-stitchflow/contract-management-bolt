@@ -1,10 +1,16 @@
 import React from 'react';
-import { useAuthStore } from './store/authStore';
-import { LoginForm } from './components/auth/LoginForm';
-import { AppManagement } from './features/apps/AppManagement';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { CompanyProvider } from './contexts/CompanyContext';
+import { AppRoutes } from './routes';
 
-export default function App() {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-
-  return isAuthenticated ? <AppManagement /> : <LoginForm />;
+function App() {
+  return (
+    <CompanyProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </CompanyProvider>
+  );
 }
+
+export default App;

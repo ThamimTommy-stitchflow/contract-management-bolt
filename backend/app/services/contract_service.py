@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 from supabase import Client
 from ..models.contract import (
     ContractCreate, 
@@ -42,14 +42,25 @@ class ContractService:
     async def create_contract(self, contract: ContractCreate) -> ContractResponse:
         """Create a new contract with services"""
         try:
-            # Verify company_app_id exists
+            # Verify company_app exists
             company_app = self.db.table('company_apps')\
                 .select('*')\
                 .eq('company_id', contract.company_id)\
+                .eq('app_id', contract.app_id)\
                 .execute()
             
             if not company_app.data:
-                raise ValueError("Invalid company_app_id")
+                raise ValueError("Invalid company_app combination")
+
+            # Check if contract already exists
+            existing_contract = self.db.table('contracts')\
+                .select('*')\
+                .eq('company_id', contract.company_id)\
+                .eq('app_id', contract.app_id)\
+                .execute()
+            
+            if existing_contract.data:
+                raise ValueError("Contract already exists for this app")
 
             # Create contract
             contract_data = contract.model_dump(exclude={'services'})
@@ -73,7 +84,6 @@ class ContractService:
                     .insert(services_data)\
                     .execute()
 
-            # Return complete contract
             return await self.get_contract(contract_id)
         except Exception as e:
             print(f"Error creating contract: {e}")

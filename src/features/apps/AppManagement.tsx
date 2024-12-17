@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Navigation } from '../../components/Navigation/Navigation';
 import { SearchBar } from '../../components/Search/SearchBar';
 import { AppList } from '../../components/Apps/AppList';
@@ -8,19 +8,23 @@ import { ActionButtons } from '../../components/Actions/ActionButtons';
 import { ContractsView } from '../../components/Contracts/ContractsView';
 import { AppHeader } from '../../components/Header/AppHeader';
 import { CATEGORIES } from '../../constants/categories';
-import { apps as predefinedApps } from '../../data/apps';
 import { useSelectedApps } from '../../hooks/useSelectedApps';
 import { useContractStorage } from '../../hooks/useContractStorage';
 import { useContractSync } from '../../hooks/useContractSync';
 import { filterAppsBySearch } from '../../utils/filterApps';
 import { parseAppList } from '../../utils/appListParser';
 import { fileToApp } from '../../utils/fileToApp';
+import { appService } from '../../services/apps';
+import { App } from '../../types/app';
 
 export function AppManagement() {
   const [activeTab, setActiveTab] = useState('apps');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
+  const [apps, setApps] = useState<App[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     selectedApps,
@@ -34,8 +38,27 @@ export function AppManagement() {
   const { contracts, removeContract } = useContractStorage();
   const { syncContracts } = useContractSync(selectedApps);
 
-  // Combine predefined apps with custom apps
-  const allApps = [...predefinedApps, ...customApps];
+  // Fetch apps from backend
+  useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        setIsLoading(true);
+        const fetchedApps = await appService.getAllApps();
+        setApps(fetchedApps);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load apps. Please try again later.');
+        console.error('Error fetching apps:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApps();
+  }, []);
+
+  // Combine backend apps with custom apps
+  const allApps = [...apps, ...customApps];
 
   const filteredApps = filterAppsBySearch(
     selectedCategory 
@@ -67,6 +90,22 @@ export function AppManagement() {
   const handleSave = useCallback(() => {
     syncContracts();
   }, [syncContracts]);
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-600">
+        {error}
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        Loading apps...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">

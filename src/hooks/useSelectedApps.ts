@@ -11,7 +11,7 @@ export function useSelectedApps() {
   const [isLoading, setIsLoading] = useState(true);
   const { company } = useCompany();
 
-  // Load selected apps on mount
+  // Load selected apps and their contracts on mount
   useEffect(() => {
     const loadSelectedApps = async () => {
       if (!company?.id) return;
@@ -19,37 +19,42 @@ export function useSelectedApps() {
       try {
         setIsLoading(true);
         const apps = await appService.getCompanyApps(company.id);
+        const contracts = await contractService.getCompanyContracts(company.id);
         
-        // Fetch contract details for each app
-        const appsWithDetails = await Promise.all(
-          apps.map(async (app) => {
-            try {
-              const contractDetails = await contractService.getContract(app.id);
-              return {
-                ...app,
-                selected: true,
-                contractDetails: {
-                  services: [createDefaultService()],
-                  ...contractDetails
-                }
-              };
-            } catch (error) {
-              console.error(`Failed to fetch contract details for app ${app.id}:`, error);
-              return {
-                ...app,
-                selected: true,
-                contractDetails: {
-                  services: [createDefaultService()],
-                  overallTotalValue: '',
-                  renewalDate: '',
-                  reviewDate: '',
-                  notes: '',
-                  contactDetails: '',
-                }
-              };
+        const appsWithDetails = apps.map(app => {
+          const contract = contracts.find(c => c.app_id === app.id);
+          
+          return {
+            ...app,
+            selected: true,
+            contractDetails: contract ? {
+              services: contract.services.map(service => ({
+                id: service.id,
+                name: service.name,
+                licenseType: service.license_type,
+                pricingModel: service.pricing_model,
+                costPerUser: service.cost_per_user?.toString() || '',
+                numberOfLicenses: service.number_of_licenses?.toString() || '',
+                totalCost: service.total_cost?.toString() || ''
+              })),
+              overallTotalValue: contract.overall_total_value?.toString() || '',
+              renewalDate: contract.renewal_date || '',
+              reviewDate: contract.review_date || '',
+              notes: contract.notes || '',
+              contactDetails: contract.contact_details || '',
+              contractFileUrl: contract.contract_file_url || '',
+              stitchflowConnection: contract.stitchflow_connection
+            } : {
+              services: [createDefaultService()],
+              overallTotalValue: '',
+              renewalDate: '',
+              reviewDate: '',
+              notes: '',
+              contactDetails: '',
+              stitchflowConnection: 'CSV Upload/API coming soon'
             }
-          })
-        );
+          };
+        });
 
         setSelectedApps(appsWithDetails);
       } catch (error) {
@@ -82,6 +87,7 @@ export function useSelectedApps() {
             reviewDate: '',
             notes: '',
             contactDetails: '',
+            stitchflowConnection: app.is_predefined ? 'API Supported' : 'CSV Upload/API coming soon'
           }
         }];
       });
@@ -121,8 +127,7 @@ export function useSelectedApps() {
               ...app, 
               contractDetails: { 
                 ...app.contractDetails,
-                ...details,
-                services: details.services || app.contractDetails?.services || [createDefaultService()]
+                ...details
               } 
             }
           : app

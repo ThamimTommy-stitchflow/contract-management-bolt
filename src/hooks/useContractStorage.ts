@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ContractRecord } from '../types/contracts';
 import { SelectedApp } from '../types/app';
-import { transformToContractRecords } from '../utils/contractTransformer';
 import { contractService } from '../services/contracts';
 import { useCompany } from '../contexts/CompanyContext';
 
@@ -12,14 +11,11 @@ export function useContractStorage() {
   // Load contracts on mount
   useEffect(() => {
     const loadContracts = async () => {
-      console.log('company', company)
       if (!company?.id) return;
       
       try {
-        const response = await contractService.getContract(company.id);
-        if (response) {
-          setContracts([response]);
-        }
+        const response = await contractService.getCompanyContracts(company.id);
+        setContracts(response);
       } catch (error) {
         console.error('Failed to load contracts:', error);
       }
@@ -33,9 +29,8 @@ export function useContractStorage() {
     }
 
     try {
-      const updatedContracts: ContractRecord[] = [];
+      const updatedContracts = [];
       
-      // Update each contract in the backend
       for (const app of selectedApps) {
         if (!app.contractDetails) continue;
 
@@ -68,35 +63,9 @@ export function useContractStorage() {
     }
   }, [company?.id]);
 
-  const removeContract = useCallback(async (appId: string) => {
-    if (!company?.id) return;
-
-    try {
-      await contractService.updateContract(
-        appId, 
-        { 
-          contractDetails: {
-            renewalDate: '',
-            reviewDate: '',
-            overallTotalValue: '',
-            notes: '',
-            contactDetails: '',
-            services: [],
-            stitchflowConnection: null
-          } 
-        }, 
-        company.id
-      );
-      setContracts(prev => prev.filter(contract => contract.appId !== appId));
-    } catch (error) {
-      console.error('Failed to remove contract:', error);
-    }
-  }, [company?.id]);
-
   return {
     contracts,
     setContracts,
-    updateContracts,
-    removeContract,
+    updateContracts
   };
 }

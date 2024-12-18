@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
 from .base import BaseDBModel
 import json
@@ -49,11 +49,18 @@ class ContractBase(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def validate_dates(cls, values):
-        # Convert string dates to date objects if they're strings
-        if isinstance(values.get('renewal_date'), str):
-            values['renewal_date'] = date.fromisoformat(values['renewal_date'])
-        if isinstance(values.get('review_date'), str):
-            values['review_date'] = date.fromisoformat(values['review_date'])
+        for date_field in ['renewal_date', 'review_date']:
+            if isinstance(values.get(date_field), str):
+                try:
+                    # First try ISO format
+                    values[date_field] = date.fromisoformat(values[date_field])
+                except ValueError:
+                    try:
+                        # Then try DD/MM/YYYY format
+                        date_obj = datetime.strptime(values[date_field], '%d/%m/%Y')
+                        values[date_field] = date_obj.date()
+                    except ValueError:
+                        raise ValueError(f"Invalid date format for {date_field}. Use YYYY-MM-DD or DD/MM/YYYY")
         return values
 
     def model_dump(self, **kwargs):

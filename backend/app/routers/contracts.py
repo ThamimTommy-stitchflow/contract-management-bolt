@@ -96,96 +96,139 @@ async def delete_contract(
 
 @router.post("/process")
 async def process_contract_file(
-    file: UploadFile = File(...),
     company_id: str,
+    file: UploadFile = File(...),
     db: Client = Depends(get_db)
 ):
     """Process a contract file and extract information"""
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are allowed"
+        )
+        
     processor = ContractProcessor()
     storage_service = StorageService(db)
     contract_service = ContractService(db)
     
     try:
         # Extract data from contract
-        extracted_data = await processor.process_contract(file)
+        try:
+            extracted_data = await processor.process_contract(file)
+            print("Extracted data:", extracted_data)
+        except Exception as e:
+            print(f"Contract processing error: {str(e)}")
+            raise HTTPException(
+                status_code=422,
+                detail=f"Failed to process contract: {str(e)}"
+            )
         
         # Reset file position for storage
         await file.seek(0)
         
-        # Check if app exists, if not create it
-        app_data = {
-            "name": extracted_data.app_name,
-            "category": extracted_data.category,
-            "api_support": False,
-            "is_predefined": False
-        }
-        
-        app_response = db.table('apps')\
-            .select('id')\
-            .eq('name', extracted_data.app_name)\
-            .execute()
+        try:
+            # Check if app exists, if not create it
+            app_data = {
+                "name": extracted_data.app_name,
+                "category": extracted_data.category,
+                "api_supported": False,
+                "is_predefined": False
+            }
+
+            print(app_data)
             
-        if not app_response.data:
             app_response = db.table('apps')\
-                .insert(app_data)\
+                .select('id')\
+                .eq('name', extracted_data.app_name)\
                 .execute()
-        
-        app_id = app_response.data[0]['id']
-        
-        # Check if company_app exists, if not create it
-        company_app_response = db.table('company_apps')\
-            .select('id')\
-            .eq('company_id', company_id)\
-            .eq('app_id', app_id)\
-            .execute()
+                
+            if not app_response.data:
+                app_response = db.table('apps')\
+                    .insert(app_data)\
+                    .execute()
             
-        if not company_app_response.data:
+            if not app_response.data:
+                raise ValueError("Failed to create or find app")
+                
+            app_id = app_response.data[0]['id']
+            
+            # Check if company_app exists, if not create it
             company_app_response = db.table('company_apps')\
-                .insert({
-                    "company_id": company_id,
-                    "app_id": app_id
-                })\
+                .select('*')\
+                .eq('company_id', company_id)\
+                .eq('app_id', app_id)\
                 .execute()
+                            
+            if not company_app_response.data:
+                company_app_response = db.table('company_apps')\
+                    .insert({
+                        "company_id": company_id,
+                        "app_id": app_id
+                    })\
+                    .execute()
+                    
+            if not company_app_response.data:
+                raise ValueError("Failed to create company-app association")
         
-        # Create contract
-        contract_data = ContractCreate(
-            company_id=company_id,
-            app_id=app_id,
-            renewal_date=extracted_data.renewal_date,
-            review_date=extracted_data.review_date,
-            notes=extracted_data.notes,
-            contact_details=extracted_data.contact_details,
-            overall_total_value=extracted_data.overall_total_cost,
-            services=extracted_data.services
-        )
+        except Exception as e:
+            print(f"Database error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to save app data: {str(e)}"
+            )
         
-        contract = await contract_service.create_contract(contract_data)
+        try:
+            # Create contract
+            contract_data = ContractCreate(
+                company_id=company_id,
+                app_id=app_id,
+                renewal_date=extracted_data.renewal_date,
+                review_date=extracted_data.review_date,
+                contract_file_url=None,
+                notes=extracted_data.notes,
+                contact_details=extracted_data.contact_details,
+                overall_total_value=extracted_data.overall_total_cost,
+                services=extracted_data.services,
+                stitchflow_connection='CSV Upload/API coming soon'
+            )
+            
+            contract = await contract_service.create_contract(contract_data)
+            
+            # Upload file to storage
+            file_path, file_url = await storage_service.upload_contract_file(
+                company_id,
+                contract.id,
+                file
+            )
+            
+            # Update contract with file information
+            update = ContractUpdate(
+                contract_file_url=file_url,
+                contract_file_path=file_path
+            )
+            updated_contract = await contract_service.update_contract(
+                contract.id,
+                company_id,
+                update
+            )
+            
+            return {
+                "message": "Contract processed and stored successfully",
+                "contract": updated_contract,
+                "app_id": app_id
+            }
+            
+        except Exception as e:
+            print(f"Contract creation error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create contract: {str(e)}"
+            )
         
-        # Upload file to storage
-        file_path, file_url = await storage_service.upload_contract_file(
-            company_id,
-            contract.id,
-            file
-        )
-        
-        # Update contract with file information
-        update = ContractUpdate(
-            contract_file_url=file_url,
-            contract_file_path=file_path
-        )
-        updated_contract = await contract_service.update_contract(
-            contract.id,
-            company_id,
-            update
-        )
-        
-        return {
-            "message": "Contract processed and stored successfully",
-            "contract": updated_contract,
-            "app_id": app_id
-        }
-        
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"Unexpected error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Error processing contract: {str(e)}"

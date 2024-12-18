@@ -6,9 +6,10 @@ import { ContractUploadModal } from '../Upload/ContractUploadModal';
 interface ActionButtonsProps {
   onAppListSubmit: (appList: string) => void;
   onContractUpload: (files: File[]) => void;
+  companyId: string;
 }
 
-export function ActionButtons({ onAppListSubmit, onContractUpload }: ActionButtonsProps) {
+export function ActionButtons({ onAppListSubmit, onContractUpload, companyId }: ActionButtonsProps) {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isAppListExpanded, setIsAppListExpanded] = useState(false);
 
@@ -53,6 +54,7 @@ export function ActionButtons({ onAppListSubmit, onContractUpload }: ActionButto
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onDone={handleUploadDone}
+        companyId={companyId}
       />
     </div>
   );

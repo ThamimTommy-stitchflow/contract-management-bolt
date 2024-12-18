@@ -42,6 +42,21 @@ class ContractService:
     async def create_contract(self, contract: ContractCreate) -> ContractResponse:
         """Create a new contract with services"""
         try:
+            # Convert date strings from DD/MM/YYYY to YYYY-MM-DD if needed
+            if isinstance(contract.renewal_date, str):
+                try:
+                    date_obj = datetime.strptime(contract.renewal_date, '%d/%m/%Y')
+                    contract.renewal_date = date_obj.date().isoformat()
+                except ValueError:
+                    pass  # If date is already in correct format, skip conversion
+
+            if isinstance(contract.review_date, str):
+                try:
+                    date_obj = datetime.strptime(contract.review_date, '%d/%m/%Y')
+                    contract.review_date = date_obj.date().isoformat()
+                except ValueError:
+                    pass  # If date is already in correct format, skip conversion
+
             # Verify company_app exists
             company_app = self.db.table('company_apps')\
                 .select('*')\

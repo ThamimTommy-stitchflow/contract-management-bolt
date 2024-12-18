@@ -16,8 +16,10 @@ import { parseAppList } from '../../utils/appListParser';
 import { fileToApp } from '../../utils/fileToApp';
 import { appService } from '../../services/apps';
 import { App } from '../../types/app';
+import { useCompany } from '../../contexts/CompanyContext';
 
 export function AppManagement() {
+  const { company } = useCompany();
   const [activeTab, setActiveTab] = useState('apps');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -120,6 +122,7 @@ export function AppManagement() {
               <ActionButtons 
                 onAppListSubmit={handleAppListSubmit}
                 onContractUpload={handleContractUpload}
+                companyId={company?.id ?? ''}
               />
             </div>
 

@@ -52,5 +52,23 @@ export const contractService = {
       }
       throw error;
     }
+  },
+
+  async uploadContract(file: File, companyId: string) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('company_id', companyId);
+
+      const response = await api.post('/contracts/process', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error uploading contract:', error);
+      throw error;
+    }
   }
 };

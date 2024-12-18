@@ -38,6 +38,7 @@ export function AppManagement() {
   const { contracts, removeContract } = useContractStorage();
   const { syncContracts } = useContractSync(selectedApps);
 
+  console.log(contracts)
   // Fetch apps from backend
   useEffect(() => {
     const fetchApps = async () => {

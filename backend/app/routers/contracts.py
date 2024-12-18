@@ -30,6 +30,7 @@ async def create_contract(
     db: Client = Depends(get_db)
 ):
     """Create a new contract with services"""
+    print(contract)
     service = ContractService(db)
     try:
         return await service.create_contract(contract)
@@ -96,19 +97,94 @@ async def delete_contract(
 @router.post("/process")
 async def process_contract_file(
     file: UploadFile = File(...),
+    company_id: str,
     db: Client = Depends(get_db)
 ):
     """Process a contract file and extract information"""
     processor = ContractProcessor()
+    storage_service = StorageService(db)
+    contract_service = ContractService(db)
     
     try:
         # Extract data from contract
         extracted_data = await processor.process_contract(file)
         
-        return {
-            "message": "Contract processed successfully",
-            "data": extracted_data
+        # Reset file position for storage
+        await file.seek(0)
+        
+        # Check if app exists, if not create it
+        app_data = {
+            "name": extracted_data.app_name,
+            "category": extracted_data.category,
+            "api_support": False,
+            "is_predefined": False
         }
+        
+        app_response = db.table('apps')\
+            .select('id')\
+            .eq('name', extracted_data.app_name)\
+            .execute()
+            
+        if not app_response.data:
+            app_response = db.table('apps')\
+                .insert(app_data)\
+                .execute()
+        
+        app_id = app_response.data[0]['id']
+        
+        # Check if company_app exists, if not create it
+        company_app_response = db.table('company_apps')\
+            .select('id')\
+            .eq('company_id', company_id)\
+            .eq('app_id', app_id)\
+            .execute()
+            
+        if not company_app_response.data:
+            company_app_response = db.table('company_apps')\
+                .insert({
+                    "company_id": company_id,
+                    "app_id": app_id
+                })\
+                .execute()
+        
+        # Create contract
+        contract_data = ContractCreate(
+            company_id=company_id,
+            app_id=app_id,
+            renewal_date=extracted_data.renewal_date,
+            review_date=extracted_data.review_date,
+            notes=extracted_data.notes,
+            contact_details=extracted_data.contact_details,
+            overall_total_value=extracted_data.overall_total_cost,
+            services=extracted_data.services
+        )
+        
+        contract = await contract_service.create_contract(contract_data)
+        
+        # Upload file to storage
+        file_path, file_url = await storage_service.upload_contract_file(
+            company_id,
+            contract.id,
+            file
+        )
+        
+        # Update contract with file information
+        update = ContractUpdate(
+            contract_file_url=file_url,
+            contract_file_path=file_path
+        )
+        updated_contract = await contract_service.update_contract(
+            contract.id,
+            company_id,
+            update
+        )
+        
+        return {
+            "message": "Contract processed and stored successfully",
+            "contract": updated_contract,
+            "app_id": app_id
+        }
+        
     except Exception as e:
         raise HTTPException(
             status_code=500,

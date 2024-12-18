@@ -28,5 +28,10 @@ export const appService = {
   async createCustomApp(app: Omit<App, 'id'>) {
     const response = await api.post('/apps', app);
     return response.data;
-  }
+  },
+
+  async getAppById(appId: string): Promise<App> {
+    const response = await api.get(`/apps/${appId}`);
+    return response.data;
+  },
 };

@@ -20,7 +20,7 @@ export function useSelectedApps() {
         setIsLoading(true);
         const apps = await appService.getCompanyApps(company.id);
         const contracts = await contractService.getCompanyContracts(company.id);
-        
+        console.log('apps', apps);
         const appsWithDetails = apps.map(app => {
           const contract = contracts.find(c => c.app_id === app.id);
           
@@ -51,11 +51,11 @@ export function useSelectedApps() {
               reviewDate: '',
               notes: '',
               contactDetails: '',
-              stitchflowConnection: 'CSV Upload/API coming soon'
+              stitchflowConnection: 'API Supported'
             }
           };
         });
-
+        console.log('appsWithDetails', appsWithDetails);
         setSelectedApps(appsWithDetails);
       } catch (error) {
         console.error('Failed to load selected apps:', error);
@@ -87,7 +87,7 @@ export function useSelectedApps() {
             reviewDate: '',
             notes: '',
             contactDetails: '',
-            stitchflowConnection: app.is_predefined ? 'API Supported' : 'CSV Upload/API coming soon'
+            stitchflowConnection: 'API Supported'
           }
         }];
       });

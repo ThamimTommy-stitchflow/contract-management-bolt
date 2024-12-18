@@ -1,3 +1,6 @@
+import { LicenseType, PricingModel, StitchflowConnection } from './contracts';
+import { Category } from './index';
+
 export interface ServiceDetails {
   id: string;
   name: string;
@@ -13,6 +16,7 @@ export interface App {
   name: string;
   category: Category;
   notes?: string;
+  is_predefined: boolean;
 }
 
 export interface SelectedApp extends App {

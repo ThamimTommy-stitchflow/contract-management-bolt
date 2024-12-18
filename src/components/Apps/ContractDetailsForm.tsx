@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { ContractDetails, ServiceDetails } from '../../types/app';
+import { appService } from '../../services/apps';
 import { FormInput, FormLabel, FormSelect, FormTextArea } from './FormElements';
 import { ServiceGroup } from './ServiceGroup';
 import { createDefaultService } from '../../utils/serviceUtils';
@@ -104,14 +105,43 @@ export function ContractDetailsForm({
   if (!details.services) {
     return null;
   }
+  
+  const [stitchflowConnection, setStitchflowConnection] = useState('CSV Upload/API coming soon');
+
+  useEffect(() => {
+    const checkAppStatus = async () => {
+      try {
+        const app = await appService.getAppById(appId);
+        const isSupported = app.is_predefined || app.api_supported;
+        setStitchflowConnection(isSupported ? 'API Supported' : 'CSV Upload/API coming soon');
+      } catch (error) {
+        console.error('Error fetching app status:', error);
+        setStitchflowConnection('CSV Upload/API coming soon');
+      }
+    };
+    
+    checkAppStatus();
+  }, [appId]);
 
   return (
     <div className="space-y-6">
-      {error && (
+      
+      <div>
+        <FormLabel>Stitchflow Connection</FormLabel>
+        <div className={`px-4 py-2.5 rounded-lg border ${
+          stitchflowConnection === 'API Supported'
+            ? 'bg-green-50 border-green-200 text-green-700 font-medium'
+            : 'bg-yellow-50 border-yellow-200 text-yellow-700 font-medium'
+        }`}>
+          {stitchflowConnection}
+        </div>
+      </div>
+      
+      {/* {error && (
         <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg">
           {error}
         </div>
-      )}
+      )} */}
 
       <div className="space-y-4">
         {details.services.map((service, index) => (

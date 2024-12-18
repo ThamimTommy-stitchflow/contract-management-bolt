@@ -4,24 +4,33 @@ export type PricingModel = 'Flat rated' | 'Tiered' | 'Pro-rated' | 'Feature base
 
 export type StitchflowConnection = 'API Supported' | 'CSV Upload/API coming soon';
 
+export interface ServiceRecord {
+  id: string;
+  name: string;
+  license_type: LicenseType;
+  pricing_model: PricingModel;
+  cost_per_user: number | null;
+  number_of_licenses: number | null;
+  total_cost: number | null;
+  contractId: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 export interface ContractRecord {
-  appId: string;
-  serviceId: string;
-  appName: string;
-  category: string;
-  serviceName: string;
-  licenseType: LicenseType;
-  pricingModel: PricingModel;
-  costPerUser: number | null;
-  numberOfLicenses: number | null;
-  totalCost: number | null;
-  overallTotalValue: number | null;
-  renewalDate: string | null;
-  reviewDate: string | null;
-  contractFileUrl?: string | null;
+  id: string;
+  createdAt: string;
+  updatedAt: string | null;
+  company_id: string;
+  app_id: string;
+  renewal_date: string | null;
+  review_date: string | null;
+  overall_total_value: number | null;
+  contract_file_url: string | null;
   notes: string | null;
-  contactDetails: string | null;
-  stitchflowConnection: StitchflowConnection;
+  contact_details: string | null;
+  stitchflow_connection: StitchflowConnection;
+  services: ServiceRecord[];
 }
 
 export const LICENSE_TYPES: LicenseType[] = ['Monthly', 'Annual', 'Quarterly', 'Other'];

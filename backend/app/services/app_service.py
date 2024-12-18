@@ -89,3 +89,20 @@ class AppService:
         except Exception as e:
             print(f"Error unselecting app: {e}")
             raise
+
+    async def get_app_by_id(self, app_id: str) -> Optional[AppResponse]:
+        """Get app details by ID"""
+        try:
+            response = self.db.table('apps')\
+                .select('*')\
+                .eq('id', app_id)\
+                .single()\
+                .execute()
+            
+            if not response.data:
+                return None
+                
+            return AppResponse(**response.data)
+        except Exception as e:
+            print(f"Error getting app by ID: {e}")
+            raise

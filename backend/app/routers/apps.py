@@ -76,3 +76,18 @@ async def create_app(
         return await service.create_app(app)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{app_id}", response_model=Optional[AppResponse])
+async def get_app_by_id(
+    app_id: str,
+    db: Client = Depends(get_db)
+):
+    """Get app details by ID"""
+    service = AppService(db)
+    try:
+        app = await service.get_app_by_id(app_id)
+        if not app:
+            raise HTTPException(status_code=404, detail="App not found")
+        return app
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -13,6 +13,7 @@ export const contractService = {
         contract_file_url: data.contractDetails.contractFileUrl || null,
         notes: data.contractDetails.notes || null,
         contact_details: data.contractDetails.contactDetails || null,
+        stitchflow_connection:data.contractDetails.stitchflowConnection,
         services: data.contractDetails.services?.map(service => ({
           name: service.name,
           license_type: service.licenseType,

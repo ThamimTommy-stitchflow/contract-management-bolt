@@ -44,8 +44,7 @@ class ContractBase(BaseModel):
     contract_file_url: Optional[str] = None
     notes: Optional[str] = None
     contact_details: Optional[str] = None
-    stitchflow_connection: str = "CSV Upload/API coming soon"
-    contract_file_url: Optional[str] = None
+    stitchflow_connection: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod

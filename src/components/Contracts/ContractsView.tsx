@@ -9,6 +9,10 @@ import { RenewalCountdown } from './RenewalCountdown';
 import { ContractDetails } from './ContractDetails';
 import { ServiceRow } from './ServiceRow';
 import type { SortOption } from './ContractSort';
+// import { useCompany } from '. hooks/useCompany';
+import { useAppDetails } from '../../hooks/useAppDetails';
+// import { EmptyState } from './EmptyState';
+// import { LoadingState } from './LoadingState';
 
 interface ContractsViewProps {
   contracts: ContractRecord[];
@@ -18,12 +22,34 @@ interface ContractsViewProps {
 
 export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProps) {
   const [sortBy, setSortBy] = useState<SortOption>('renewal-priority');
+  // const { company } = useCompany();
   
-  const groupedContracts = groupContractsByApp(contracts);
-  const sortedContracts = sortContracts(groupedContracts, sortBy);
-  const totalContractValue = calculateTotalContractValue(groupedContracts);
+  // Add null check for contracts
+  if (!contracts) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+        <p className="text-gray-500">Loading contracts...</p>
+      </div>
+    );
+  }
 
-  if (!contracts || contracts.length === 0) {
+  // Get unique app IDs from valid contracts
+  console.log('Contracts:', contracts);
+  const appIds = contracts.map(contract => contract.app_id);
+  console.log('App IDs:', appIds);
+  const { appDetailsMap, isLoading: appsLoading } = useAppDetails(appIds);
+
+  // Show loading state while fetching app details
+  if (appsLoading) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+        <p className="text-gray-500">Loading app details...</p>
+      </div>
+    );
+  }
+
+  // Handle empty contracts case
+  if (contracts.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
         <p className="text-gray-500">
@@ -32,6 +58,38 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
       </div>
     );
   }
+
+  // Transform the contracts to include app details while maintaining the ContractRecord structure
+  const enrichedContracts = contracts.map(contract => {
+    console.log(appDetailsMap)
+    const appDetails = appDetailsMap.get(contract.app_id);
+    console.log(appDetails)
+    return {
+      ...contract,
+      // Add these fields for display purposes without modifying the base ContractRecord structure
+      appName: appDetails?.name || 'Unknown App',
+      category: appDetails?.category || 'Unknown Category',
+      // Ensure services array maintains the correct structure
+      services: contract.services.map(service => ({
+        ...service,
+        id: service.id,
+        name: service.name,
+        licenseType: service.license_type,
+        pricingModel: service.pricing_model,
+        costPerUser: service.cost_per_user,
+        numberOfLicenses: service.number_of_licenses,
+        totalCost: service.total_cost,
+        contractId: contract.id,
+        createdAt: service.createdAt,
+        updatedAt: service.updatedAt
+      }))
+    };
+  });
+  console.log(enrichedContracts)
+  const groupedContracts = groupContractsByApp(enrichedContracts);
+  const sortedContracts = sortContracts(groupedContracts, sortBy);
+  const totalContractValue = calculateTotalContractValue(groupedContracts);
+  console.log("contract in view tab",contracts)
 
   return (
     <div className="space-y-6">
@@ -61,7 +119,7 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
                       ? 'bg-green-100 text-green-800'
                       : 'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {group.stitchflowConnection === 'API Supported' ? 'API' : 'CSV'}
+                    {group.stitchflowConnection === 'API Supported' ? 'API Supported' : 'CSV Upload/API coming soon'}
                   </span>
                   <div className="flex items-center space-x-2 ml-4">
                     {onEdit && (

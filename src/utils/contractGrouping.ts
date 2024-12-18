@@ -1,5 +1,4 @@
 import { ContractRecord } from '../types/contracts';
-
 export interface GroupedContract {
   appId: string;
   appName: string;
@@ -22,43 +21,32 @@ export interface GroupedContract {
   stitchflowConnection: string;
 }
 
-export function groupContractsByApp(contracts: ContractRecord[]): GroupedContract[] {
-  const groupedMap = new Map<string, GroupedContract>();
+interface EnrichedContract extends ContractRecord {
+  appName: string;
+  category: string;
+}
 
-  for (const contract of contracts) {
-    if (!groupedMap.has(contract.appId)) {
-      groupedMap.set(contract.appId, {
-        appId: contract.appId,
-        appName: contract.appName,
-        category: contract.category,
-        services: [],
-        overallTotalValue: contract.overallTotalValue?.toString() || '',
-        renewalDate: contract.renewalDate,
-        reviewDate: contract.reviewDate,
-        contractFileUrl: contract.contractFileUrl,
-        notes: contract.notes || '',
-        contactDetails: contract.contactDetails || '',
-        stitchflowConnection: contract.stitchflowConnection || 'CSV Upload/API coming soon',
-      });
-    }
-
-    const group = groupedMap.get(contract.appId)!;
-    
-    // Only add service if it's not already in the array
-    const existingService = group.services.find(s => s.serviceId === contract.serviceId);
-    
-    if (!existingService && contract.serviceId) {
-      group.services.push({
-        serviceId: contract.serviceId,
-        serviceName: contract.serviceName || 'Default Service',
-        licenseType: contract.licenseType || 'Annual',
-        pricingModel: contract.pricingModel || 'Flat rated',
-        costPerUser: contract.costPerUser,
-        numberOfLicenses: contract.numberOfLicenses,
-        totalCost: contract.totalCost,
-      });
-    }
-  }
-
-  return Array.from(groupedMap.values());
+export function groupContractsByApp(contracts: EnrichedContract[]): GroupedContract[] {
+  console.log(contracts);
+  return contracts.map(contract => ({
+    appId: contract.app_id,
+    appName: contract.appName,
+    category: contract.category,
+    services: contract.services.map(service => ({
+      serviceId: service.id,
+      serviceName: service.name,
+      licenseType: service.license_type,
+      pricingModel: service.pricing_model,
+      costPerUser: service.cost_per_user,
+      numberOfLicenses: service.number_of_licenses,
+      totalCost: service.total_cost
+    })),
+    overallTotalValue: contract.overall_total_value?.toString() || '',
+    renewalDate: contract.renewal_date,
+    reviewDate: contract.review_date,
+    contractFileUrl: contract.contract_file_url || 'Not Provided',
+    notes: contract.notes || 'Not Provided',
+    contactDetails: contract.contact_details || 'Not Provided',
+    stitchflowConnection: contract.stitchflow_connection
+  }));
 }

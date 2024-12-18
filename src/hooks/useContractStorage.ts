@@ -16,8 +16,9 @@ export function useContractStorage() {
       
       try {
         const response = await contractService.getCompanyContracts(company.id);
-        const transformedContracts = response.map(transformContractResponse);
-        setContracts(transformedContracts);
+        // const transformedContracts = response.map(transformContractResponse);
+        console.log(response)
+        setContracts(response);
       } catch (error) {
         console.error('Failed to load contracts:', error);
       }
@@ -60,7 +61,7 @@ export function useContractStorage() {
           contractData,
           company.id
         );
-        
+        // Need to change the transformContractResponse to match the updatedContract structure
         updatedContracts.push(transformContractResponse(updatedContract));
       }
       

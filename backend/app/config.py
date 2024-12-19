@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     environment: str = os.getenv("ENVIRONMENT", "development")
     cors_origins: list = [
         "http://localhost:3000",  # Default React dev server
-        "http://localhost:5173"   # Vite dev server
+        "http://localhost:5173",
+        "https://contract-management-bolt-frontend.onrender.com"   # Vite dev server
     ]
 
 @lru_cache()

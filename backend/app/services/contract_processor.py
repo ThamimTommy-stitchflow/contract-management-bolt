@@ -42,7 +42,7 @@ class ContractProcessor:
            - name: service name
            - license_type: one of [Monthly, Annual, Quarterly, Other]
            - pricing_model: one of [Flat rated, Tiered, Pro-rated, Feature based] (note: 'based' must be lowercase)
-           - cost_per_license: cost as string number without currency
+           - cost_per_license: cost as string number without currency(note: the cost per license should based on the license type  example: if the license type is annual, look for the annual cost per license and apply the same cost for monthly, quarterly and other license types, if not found, return the cost per license you found)
            - number_of_licenses: quantity as string
            - total_cost: total cost as string number without currency
         4. renewal_date: in DD/MM/YYYY format
@@ -98,7 +98,7 @@ class ContractProcessor:
             assistant = self.client.beta.assistants.create(
                 name="Contract Parser",
                 instructions=self.system_prompt,
-                model="gpt-4-turbo-preview",
+                model="gpt-4o",
                 tools=[{"type": "file_search"}],
                 tool_resources={
                     "file_search": {
@@ -124,7 +124,7 @@ class ContractProcessor:
             )
 
             # Wait for completion
-            max_retries = 60  # Maximum 60 seconds wait
+            max_retries = 90  # Maximum 60 seconds wait
             retries = 0
             while True:
                 run_status = self.client.beta.threads.runs.retrieve(

@@ -85,10 +85,10 @@ export function AppManagement() {
     setActiveTab('apps');
   }, []);
 
-  const handleRemoveContract = useCallback((appId: string) => {
-    removeContract(appId);
-    handleRemoveApp(appId);
-  }, [handleRemoveApp, removeContract]);
+  const handleRemoveContract = useCallback(async (appId: string) => {
+    await handleRemoveApp(appId);
+    window.location.reload();
+  }, [handleRemoveApp]);
 
   const handleSave = useCallback(() => {
     syncContracts();

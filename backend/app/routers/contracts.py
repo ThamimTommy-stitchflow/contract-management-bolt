@@ -7,8 +7,9 @@ from ..services.storage_service import StorageService
 from typing import List
 from supabase import Client
 from ..database import get_db
-from ..models.contract import ContractCreate, ContractResponse, ContractUpdate
+from ..models.contract import ContractCreate, ContractResponse, ContractUpdate, ServiceUpdate
 from ..services.contract_service import ContractService
+from datetime import datetime
 
 router = APIRouter()
 
@@ -93,6 +94,44 @@ async def delete_contract(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.put("/{contract_id}/services")
+async def update_contract_services(
+    contract_id: str,
+    services: List[ServiceUpdate],
+    company_id: str,  # We'll get this from auth in future
+    db: Client = Depends(get_db)
+):
+    """Update services for a contract"""
+    service = ContractService(db)
+    try:
+        # First verify the contract exists and belongs to the company
+        contract = await service.get_contract(contract_id)
+        if not contract or contract.company_id != company_id:
+            raise HTTPException(status_code=404, detail="Contract not found")
+        
+        # Convert services to dict format
+        services_data = [
+            {
+                "name": s.name,
+                "license_type": s.license_type,
+                "pricing_model": s.pricing_model,
+                "cost_per_user": s.cost_per_user,
+                "number_of_licenses": s.number_of_licenses,
+                "total_cost": s.total_cost
+            }
+            for s in services
+        ]
+        
+        # Update services using the service method
+        await service.update_contract_services(contract_id, services_data)
+        
+        # Return updated contract
+        return await service.get_contract(contract_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating services: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/process")
 async def process_contract_file(
@@ -179,11 +218,47 @@ async def process_contract_file(
         
         try:
             # Create contract
+            # Debug print statements
+            print("Raw renewal date:", extracted_data.renewal_date)
+            print("Raw renewal date type:", type(extracted_data.renewal_date))
+            print("Raw review date:", extracted_data.review_date)
+            print("Raw review date type:", type(extracted_data.review_date))
+
+            # Handle dates that might be strings or datetime objects
+            renewal_date = extracted_data.renewal_date
+            if renewal_date:
+                try:
+                    if isinstance(renewal_date, str):
+                        # Try parsing DD/MM/YYYY format
+                        parsed_date = datetime.strptime(renewal_date, '%d/%m/%Y').date()
+                        renewal_date = parsed_date.strftime('%Y-%m-%d')
+                    else:
+                        renewal_date = renewal_date.strftime('%Y-%m-%d')
+                except ValueError as e:
+                    print(f"Error parsing renewal_date: {e}")
+                    renewal_date = None
+
+            review_date = extracted_data.review_date
+            if review_date:
+                try:
+                    if isinstance(review_date, str):
+                        # Try parsing DD/MM/YYYY format
+                        parsed_date = datetime.strptime(review_date, '%d/%m/%Y').date()
+                        review_date = parsed_date.strftime('%Y-%m-%d')
+                    else:
+                        review_date = review_date.strftime('%Y-%m-%d')
+                except ValueError as e:
+                    print(f"Error parsing review_date: {e}")
+                    review_date = None
+
+            print("Processed renewal date:", renewal_date)
+            print("Processed review date:", review_date)
+
             contract_data = ContractCreate(
                 company_id=company_id,
                 app_id=app_id,
-                renewal_date=extracted_data.renewal_date,
-                review_date=extracted_data.review_date,
+                renewal_date=renewal_date,
+                review_date=review_date,
                 contract_file_url=None,
                 notes=extracted_data.notes,
                 contact_details=extracted_data.contact_details,
@@ -192,24 +267,46 @@ async def process_contract_file(
                 stitchflow_connection='CSV Upload/API coming soon'
             )
             
+            print("Contract data:", contract_data.model_dump())
             contract = await contract_service.create_contract(contract_data)
             
+            print("Entering upload file to storage")
             # Upload file to storage
-            file_path, file_url = await storage_service.upload_contract_file(
-                company_id,
-                contract.id,
-                file
-            )
+            try:
+                file_path, file_url = await storage_service.upload_contract_file(
+                    company_id,
+                    contract.id,
+                    file
+                )
+            except Exception as upload_error:
+                # Fallback to admin client
+                if storage_service.admin_client:
+                    content = await file.read()
+                    file_path = f"{company_id}/{contract.id}/{file.filename}"
+                    response = storage_service.admin_client.storage \
+                        .from_(storage_service.bucket_name) \
+                        .upload(
+                            file_path,
+                            content,
+                            {"contentType": file.content_type}
+                        )
+                    file_url = storage_service.admin_client.storage \
+                        .from_(storage_service.bucket_name) \
+                        .get_public_url(file_path)
+                else:
+                    raise upload_error
+            
+            print("Exiting upload file to storage")
             
             # Update contract with file information
-            update = ContractUpdate(
-                contract_file_url=file_url,
-                contract_file_path=file_path
-            )
+            update_data = {
+                "contract_file_url": file_url,
+            }
+            
             updated_contract = await contract_service.update_contract(
                 contract.id,
                 company_id,
-                update
+                ContractUpdate(**update_data)
             )
             
             return {
@@ -357,5 +454,48 @@ async def download_contract_file(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/test-upload")
+async def test_file_upload(
+    file: UploadFile = File(...),
+    db: Client = Depends(get_db)
+):
+    """Test endpoint for file uploads"""
+    storage_service = StorageService(db)
+    try:
+        content = await file.read()
+        test_path = f"test/{file.filename}"
+        
+        # Try with regular client
+        print("Attempting upload with regular client...")
+        try:
+            response = storage_service.db.storage \
+                .from_(storage_service.bucket_name) \
+                .upload(
+                    test_path,
+                    content,
+                    {"contentType": file.content_type}
+                )
+            print("Regular client response:", response)
+        except Exception as e:
+            print("Regular client error:", str(e))
+
+        # Try with admin client
+        print("Attempting upload with admin client...")
+        try:
+            response = storage_service.admin_client.storage \
+                .from_(storage_service.bucket_name) \
+                .upload(
+                    test_path,
+                    content,
+                    {"contentType": file.content_type}
+                )
+            print("Admin client response:", response)
+        except Exception as e:
+            print("Admin client error:", str(e))
+
+        return {"message": "Test complete - check logs"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

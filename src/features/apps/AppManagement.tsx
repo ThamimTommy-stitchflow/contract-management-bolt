@@ -17,6 +17,7 @@ import { fileToApp } from '../../utils/fileToApp';
 import { appService } from '../../services/apps';
 import { App } from '../../types/app';
 import { useCompany } from '../../contexts/CompanyContext';
+import { SyncLoader } from 'react-spinners';
 
 export function AppManagement() {
   const { company } = useCompany();
@@ -104,8 +105,11 @@ export function AppManagement() {
 
   if (isLoading) {
     return (
-      <div className="p-4">
-        Loading apps...
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <SyncLoader color="#4F46E5" size={15} margin={5} />
+          <p className="mt-4 text-gray-600 font-medium">Loading apps...</p>
+        </div>
       </div>
     );
   }

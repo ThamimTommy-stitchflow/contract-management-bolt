@@ -39,9 +39,9 @@ class ContractProcessor:
            Productivity & Collaboration, Sales & Marketing, Analytics & Customer Success, Security & Compliance, 
            Support & Service, Asset & Resource Management]
         3. services: Array of services with:
-           - name: service name
-           - license_type: one of [Monthly, Annual, Quarterly, Other]
-           - pricing_model: one of [Flat rated, Tiered, Pro-rated, Feature based] (note: 'based' must be lowercase)
+           - name: service name (note: if you can't find the service name, return the not found)
+           - license_type: one of [Monthly, Annual, Quarterly, Other] (note: if you can't find the license type, return the not Other)
+           - pricing_model: one of [Flat rated, Tiered, Pro-rated, Feature based] (note: 'based' must be lowercase) 
            - cost_per_license: cost as string number without currency(note: the cost per license should based on the license type  example: if the license type is annual, look for the annual cost per license and apply the same cost for monthly, quarterly and other license types, if not found, return the cost per license you found)
            - number_of_licenses: quantity as string
            - total_cost: total cost as string number without currency
@@ -142,7 +142,7 @@ class ContractProcessor:
                 if retries >= max_retries:
                     raise ValueError("Assistant run timed out after 60 seconds")
                     
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
 
             # Get the response
             messages = self.client.beta.threads.messages.list(

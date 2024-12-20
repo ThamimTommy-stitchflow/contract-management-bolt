@@ -41,7 +41,7 @@ class ContractProcessor:
         3. services: Array of services with:
            - name: service name (note: if you can't find the service name, return the not found)
            - license_type: one of [Monthly, Annual, Quarterly, Other] (note: if you can't find the license type, return the not Other)
-           - pricing_model: one of [Flat rated, Tiered, Pro-rated, Feature based] (note: 'based' must be lowercase) 
+           - pricing_model: one of [Flat rated, Tiered, Pro-rated, Feature based] (note: 'based' must be lowercase) (note: if you can't find the pricing model, return the not found)
            - cost_per_license: cost as string number without currency(note: the cost per license should based on the license type  example: if the license type is annual, look for the annual cost per license and apply the same cost for monthly, quarterly and other license types, if not found, return the cost per license you found)
            - number_of_licenses: quantity as string
            - total_cost: total cost as string number without currency
@@ -183,16 +183,24 @@ class ContractProcessor:
             for service in parsed_data.get('services', []):
                 # Normalize the pricing model
                 pricing_model = service['pricing_model'].upper()
-                normalized_pricing_model = pricing_model_mapping.get(pricing_model, service['pricing_model'])
+                # Set default pricing model to 'Flat rated' if 'Not found'
+                if pricing_model.lower() == 'not found':
+                    normalized_pricing_model = 'Flat rated'
+                else:
+                    normalized_pricing_model = pricing_model_mapping.get(pricing_model, service['pricing_model'])
                 
                 try:
+                    # Convert cost values, handling "not found" cases (case-insensitive)
+                    cost_per_license = "0" if service['cost_per_license'].lower() == "not found" else service['cost_per_license']
+                    total_cost = "0" if service['total_cost'].lower() == "not found" else service['total_cost']
+                    
                     services.append(ServiceCreate(
                         name=service['name'],
                         license_type=service['license_type'],
                         pricing_model=normalized_pricing_model,
-                        cost_per_user=service['cost_per_license'],
+                        cost_per_user=float(cost_per_license),
                         number_of_licenses=service['number_of_licenses'],
-                        total_cost=float(service['total_cost'])
+                        total_cost=float(total_cost)
                     ))
                 except ValueError as e:
                     print(f"Error processing service {service['name']}: {str(e)}")
@@ -211,6 +219,11 @@ class ContractProcessor:
             else:
                 contact_details = parsed_data.get('contact_details')
 
+            # Clean up numeric values by removing commas
+            overall_total_cost = parsed_data.get('overall_total_cost', '0')
+            if isinstance(overall_total_cost, str):
+                overall_total_cost = overall_total_cost.replace(',', '')
+
             # Create and return ContractExtraction object
             return ContractExtraction(
                 app_name=parsed_data['app_name'],
@@ -221,7 +234,7 @@ class ContractProcessor:
                 contract_url=None,
                 notes=parsed_data.get('notes'),
                 contact_details=contact_details,
-                overall_total_cost=parsed_data.get('overall_total_cost')
+                overall_total_cost=overall_total_cost  # Using cleaned value
             )
 
         except Exception as e:

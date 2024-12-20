@@ -37,6 +37,17 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
   console.log('Contracts:', contracts);
   const appIds = contracts.map(contract => contract.app_id);
   console.log('App IDs:', appIds);
+
+  if (appIds.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+        <p className="text-gray-500">
+          No contracts available. Add apps and complete their details to see them here.
+        </p>
+      </div>
+    );
+  }
+  
   const { appDetailsMap, isLoading: appsLoading } = useAppDetails(appIds);
 
   // Show loading state while fetching app details

@@ -192,22 +192,12 @@ async def process_contract_file(
             app_id = app_response.data[0]['id']
             
             # Check if company_app exists, if not create it
-            company_app_response = db.table('company_apps')\
-                .select('*')\
-                .eq('company_id', company_id)\
-                .eq('app_id', app_id)\
+            db.table('company_apps')\
+                .upsert({
+                    "company_id": company_id,
+                    "app_id": app_id
+                })\
                 .execute()
-                            
-            if not company_app_response.data:
-                company_app_response = db.table('company_apps')\
-                    .insert({
-                        "company_id": company_id,
-                        "app_id": app_id
-                    })\
-                    .execute()
-                    
-            if not company_app_response.data:
-                raise ValueError("Failed to create company-app association")
         
         except Exception as e:
             print(f"Database error: {str(e)}")
@@ -254,6 +244,7 @@ async def process_contract_file(
             print("Processed renewal date:", renewal_date)
             print("Processed review date:", review_date)
 
+            stitchflow_connection = 'API Supported' if app_response.data else 'CSV Upload/API coming soon'
             contract_data = ContractCreate(
                 company_id=company_id,
                 app_id=app_id,
@@ -264,7 +255,7 @@ async def process_contract_file(
                 contact_details=extracted_data.contact_details,
                 overall_total_value=extracted_data.overall_total_cost,
                 services=extracted_data.services,
-                stitchflow_connection='CSV Upload/API coming soon'
+                stitchflow_connection=stitchflow_connection
             )
             
             print("Contract data:", contract_data.model_dump())

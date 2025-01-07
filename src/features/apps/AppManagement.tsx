@@ -12,7 +12,6 @@ import { useSelectedApps } from '../../hooks/useSelectedApps';
 import { useContractStorage } from '../../hooks/useContractStorage';
 import { useContractSync } from '../../hooks/useContractSync';
 import { filterAppsBySearch } from '../../utils/filterApps';
-import { parseAppList } from '../../utils/appListParser';
 import { fileToApp } from '../../utils/fileToApp';
 import { appService } from '../../services/apps';
 import { App } from '../../types/app';
@@ -38,10 +37,9 @@ export function AppManagement() {
     customApps
   } = useSelectedApps();
 
-  const { contracts, removeContract } = useContractStorage();
+  const { contracts} = useContractStorage();
   const { syncContracts } = useContractSync(selectedApps);
 
-  console.log(contracts)
   // Fetch apps from backend
   useEffect(() => {
     const fetchApps = async () => {
@@ -71,10 +69,15 @@ export function AppManagement() {
     searchQuery
   );
 
-  const handleAppListSubmit = useCallback((appList: string) => {
-    const parsedApps = parseAppList(appList);
-    handleBulkSelect(parsedApps);
-  }, [handleBulkSelect]);
+  const handleAppListSubmit = async (appList: string) => {
+    try {
+      window.location.reload();
+      await appService.uploadAppList(appList,company?.id ?? '');
+    } catch (error) {
+      setIsLoading(false)
+      console.error('Failed to upload app list:', error);
+    }
+  };
 
   const handleContractUpload = useCallback((files: File[]) => {
     const apps = files.map(fileToApp);

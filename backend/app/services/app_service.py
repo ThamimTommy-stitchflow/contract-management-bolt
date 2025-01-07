@@ -90,6 +90,23 @@ class AppService:
             print(f"Error unselecting app: {e}")
             raise
 
+    async def get_app_by_name(self, name: str) -> Optional[AppResponse]:
+        """Get app by name with case-insensitive exact matching"""
+        try:
+            # Use raw SQL query for exact case-insensitive matching
+            query = 'name ILIKE :name'
+            response = self.db.table('apps')\
+                .select('*')\
+                .execute({"name": name}, count_only=False)
+                
+            if not response.data:
+                return None
+                
+            return AppResponse(**response.data[0])
+        except Exception as e:
+            print(f"Error getting app by name: {e}")
+            raise
+
     async def get_app_by_id(self, app_id: str) -> Optional[AppResponse]:
         """Get app details by ID"""
         try:

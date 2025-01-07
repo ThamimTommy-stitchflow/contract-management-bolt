@@ -91,3 +91,70 @@ async def get_app_by_id(
         return app
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/list_upload", response_model=dict)
+async def upload_app_list(
+    data: dict,
+    db: Client = Depends(get_db)
+):
+    """Upload a list of apps and associate them with a company"""
+    company_id = data.get('company_id')
+    app_list = data.get('app_list')
+    
+    if not company_id:
+        raise HTTPException(status_code=400, detail="company_id is required")
+    if not app_list:
+        raise HTTPException(status_code=400, detail="app_list is required")
+        
+    service = AppService(db)
+    
+    # Input validation
+    if not app_list or not app_list.strip():
+        raise HTTPException(status_code=400, detail="App list cannot be empty")
+    
+    try:
+        # Split and clean the app names
+        app_names = [name.strip() for name in app_list.split(',') if name.strip()]
+        
+        # Remove duplicates while preserving order
+        app_names = list(dict.fromkeys(app_names))
+        
+        if not app_names:
+            raise HTTPException(status_code=400, detail="No valid app names provided")
+        
+        results = []
+        existing_company_apps = await service.get_company_apps(company_id)
+        existing_app_names = {app.name.lower() for app in existing_company_apps}
+        
+        for app_name in app_names:
+            # Skip if app is already associated with company
+            if app_name.lower() in existing_app_names:
+                continue
+                
+            # Check if app exists
+            existing_app = await service.get_app_by_name(app_name)
+            
+            if not existing_app:
+                # Create new app
+                new_app = AppCreate(
+                    name=app_name,
+                    category="CSV Uploads",
+                    is_predefined=False,
+                    api_support=False
+                )
+                app = await service.create_app(new_app)
+            else:
+                app = existing_app
+                
+            # Associate app with company
+            company_app = CompanyAppCreate(company_id=company_id, app_id=app.id)
+            await service.select_app(company_app)
+            results.append(app)
+            
+        return {
+            "message": f"Successfully processed {len(results)} new apps",
+            "apps": results
+        }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

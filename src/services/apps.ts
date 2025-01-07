@@ -34,4 +34,13 @@ export const appService = {
     const response = await api.get(`/apps/${appId}`);
     return response.data;
   },
+
+  async uploadAppList(appList: string, companyId: string) {
+    const response = await api.post('/apps/list_upload', {
+      company_id: companyId,
+      app_list: appList
+    });
+    return response.data;
+  }
+
 };

@@ -11,6 +11,18 @@ class LicenseType(str, Enum):
     QUARTERLY = "Quarterly"
     OTHER = "Other"
 
+class AccessReviewCycle(str, Enum):
+    AD_HOC = "Ad-Hoc"
+    WEEKLY = "Weekly"
+    MONTHLY = "Monthly"
+    QUARTERLY = "Quarterly"
+    YEARLY = "Yearly"
+
+class SecurityTier(str, Enum):
+    TIER_1 = "Tier 1"
+    TIER_2 = "Tier 2"
+    TIER_3 = "Tier 3"
+
 class PricingModel(str, Enum):
     FLAT = "Flat rated"
     TIERED = "Tiered"
@@ -45,6 +57,10 @@ class ContractBase(BaseModel):
     notes: Optional[str] = None
     contact_details: Optional[str] = None
     stitchflow_connection: Optional[str] = None
+    primary_app_owner: Optional[str] = None
+    secondary_app_owner: Optional[str] = None
+    access_review_cycle: Optional[str] = None
+    security_tier: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -92,6 +108,10 @@ class ContractUpdate(BaseModel):
     contact_details: Optional[dict] = None
     overall_total_value: Optional[float] = None
     stitchflow_connection: Optional[str] = None
+    primary_app_owner: Optional[str] = None
+    secondary_app_owner: Optional[str] = None
+    access_review_cycle: Optional[str] = None
+    security_tier: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod

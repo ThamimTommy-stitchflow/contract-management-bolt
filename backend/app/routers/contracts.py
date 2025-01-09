@@ -32,6 +32,7 @@ async def create_contract(
 ):
     """Create a new contract with services"""
     print(contract)
+    print("I'm here")
     service = ContractService(db)
     try:
         return await service.create_contract(contract)

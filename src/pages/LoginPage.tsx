@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCompany } from '../contexts/CompanyContext';
+import { useCompany } from '../context/CompanyContext';
 
 export function LoginPage() {
   const [companyName, setCompanyName] = useState('');

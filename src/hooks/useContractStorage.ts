@@ -1,13 +1,24 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ContractRecord } from '../types/contracts';
 import { SelectedApp } from '../types/app';
+import { transformToContractRecords, transformContractResponse } from '../utils/contractTransformer';
 import { contractService } from '../services/contracts';
-import { useCompany } from '../contexts/CompanyContext';
-import { transformContractResponse } from '../utils/contractTransformer';
+import { useCompany } from '../context/CompanyContext';
+
 
 export function useContractStorage() {
+  // const [contracts, setContracts] = useState<ContractRecord[]>(() => {
+  //   const storedContracts = storage.get<ContractRecord[]>(STORAGE_KEY);
+  //   return storedContracts || [];
+  // });
+
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const { company } = useCompany();
+
+  // Persist contracts whenever they change
+  // useEffect(() => {
+  //   storage.set(STORAGE_KEY, contracts);
+  // }, [contracts]);
 
   // Load contracts on mount
   useEffect(() => {
@@ -32,10 +43,10 @@ export function useContractStorage() {
     }
 
     try {
-      const updatedContracts = [];
+      const updatedContracts:any[] = [];
       
-      for (const app of selectedApps) {
-        if (!app.contractDetails) continue;
+      await Promise.all(selectedApps.map(async (app) => {
+        if (!app.contractDetails) return;
 
         const contractData = {
           contractDetails: {
@@ -52,18 +63,27 @@ export function useContractStorage() {
               numberOfLicenses: service.numberOfLicenses,
               totalCost: service.totalCost
             })),
-            stitchflowConnection: app.contractDetails.stitchflowConnection || null
+            stitchflowConnection: app.contractDetails.stitchflowConnection || null,
+            primaryAppOwner: app.contractDetails.primaryAppOwner || '',
+            secondaryAppOwner: app.contractDetails.secondaryAppOwner || '',
+            accessReviewCycle: app.contractDetails.accessReviewCycle || 'Monthly',
+            securityTier: app.contractDetails.securityTier || 'Tier 3'
           }
         };
 
-        const updatedContract = await contractService.updateContract(
-          app.id,
-          contractData,
-          company.id
-        );
+        try {
+          const updatedContract = await contractService.updateContract(
+            app.id,
+            contractData,
+            company.id
+          );
         // Need to change the transformContractResponse to match the updatedContract structure
         updatedContracts.push(transformContractResponse(updatedContract));
-      }
+      }catch (error) {
+        console.error(`Failed to update contract for app ${app.id}:`, error);
+        // Consider how you want to handle partial failures
+        }
+      }));
       
       setContracts(updatedContracts);
       return updatedContracts;
@@ -73,9 +93,14 @@ export function useContractStorage() {
     }
   }, [company?.id]);
 
+  const removeContract = useCallback((appId: string) => {
+    setContracts(prev => prev.filter(contract => contract.appId !== appId));
+  }, []);
+
   return {
     contracts,
     setContracts,
-    updateContracts
+    updateContracts,
+    removeContract,
   };
 }

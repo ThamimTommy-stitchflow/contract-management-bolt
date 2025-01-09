@@ -15,8 +15,14 @@ export const contractService = {
         overall_total_value: data.contractDetails.overallTotalValue ? parseFloat(data.contractDetails.overallTotalValue.toString()) : null,
         contract_file_url: data.contractDetails.contractFileUrl || null,
         notes: data.contractDetails.notes || null,
-        contact_details: data.contractDetails.contactDetails ? { text: data.contractDetails.contactDetails } : null,
-        stitchflow_connection: data.contractDetails.stitchflowConnection || null
+        contact_details: typeof data.contractDetails.contactDetails === 'string' 
+          ? { notes: data.contractDetails.contactDetails }
+          : data.contractDetails.contactDetails || null,
+        stitchflow_connection: data.contractDetails.stitchflowConnection || null,
+        primary_app_owner: data.contractDetails.primaryAppOwner || null,
+        secondary_app_owner: data.contractDetails.secondaryAppOwner || null,
+        access_review_cycle: data.contractDetails.accessReviewCycle || null,
+        security_tier: data.contractDetails.securityTier || null
       };
       
       if (!contract) {
@@ -34,6 +40,7 @@ export const contractService = {
             total_cost: service.totalCost ? parseFloat(service.totalCost.toString()) : null
           }))
         };
+        console.log(createData);
         const response = await api.post('/contracts', createData);
         return response.data;
       }

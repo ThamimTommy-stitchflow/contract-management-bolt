@@ -93,11 +93,10 @@ class AppService:
     async def get_app_by_name(self, name: str) -> Optional[AppResponse]:
         """Get app by name with case-insensitive exact matching"""
         try:
-            # Use raw SQL query for exact case-insensitive matching
-            query = 'name ILIKE :name'
             response = self.db.table('apps')\
                 .select('*')\
-                .execute({"name": name}, count_only=False)
+                .ilike('name', name)\
+                .execute()
                 
             if not response.data:
                 return None

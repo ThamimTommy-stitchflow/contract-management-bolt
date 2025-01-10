@@ -6,108 +6,92 @@ import { FormInput, FormLabel, FormSelect, FormTextArea } from './FormElements';
 import { ServiceGroup } from './ServiceGroup';
 import { createDefaultService } from '../../utils/serviceUtils';
 import { calculateOverallTotalValue } from '../../utils/costCalculator';
-import { calculateReviewDate, formatDate, parseDate } from '../../utils/dateUtils';
+import { calculateReviewDate } from '../../utils/dateUtils';
+import { ACCESS_REVIEW_CYCLES, SECURITY_TIERS } from '../../types/contracts';
 
 interface ContractDetailsFormProps {
   details: Partial<ContractDetails>;
   onChange: (details: Partial<ContractDetails>) => void;
-  onSave: () => void;
   onCancel: () => void;
   appId: string;
+  onSubmit?: (details: ContractDetails) => Promise<void>;
+  disabled?: boolean;
 }
 
 export function ContractDetailsForm({ 
   details: initialDetails, 
   onChange, 
-  onSave,
   onCancel,
-  appId 
+  appId,
+  onSubmit,
+  disabled = false 
 }: ContractDetailsFormProps) {
-  const [details, setDetails] = useState<Partial<ContractDetails>>(() => ({
+  const [localDetails, setLocalDetails] = useState<Partial<ContractDetails>>(() => ({
     services: [createDefaultService()],
     overallTotalValue: '',
     renewalDate: '',
     reviewDate: '',
     notes: '',
     contactDetails: '',
+    primaryAppOwner: '',
+    secondaryAppOwner: '',
+    accessReviewCycle: 'Quarterly',
+    securityTier: 'Tier 2',
+    contractFileUrl: '',
     ...initialDetails
   }));
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  console.log('in ContractDetailsForm view localDetails', localDetails);
+
+  const handleChange = (field: keyof ContractDetails, value: string) => {
+    const newDetails = { ...localDetails, [field]: value };
+    
+    if (field === 'renewalDate' && value) {
+      const reviewDate = calculateReviewDate(value);
+      newDetails.reviewDate = reviewDate;
+    }
+    
+    setLocalDetails(newDetails);
+    onChange(newDetails);
+  };
 
   const handleServiceChange = (index: number, service: ServiceDetails) => {
-    const services = [...(details.services || [])];
+    const services = [...(localDetails.services || [])];
     services[index] = service;
     
     const newOverallTotal = calculateOverallTotalValue(services);
     const newDetails = { 
-      ...details, 
+      ...localDetails, 
       services,
       overallTotalValue: newOverallTotal
     };
     
-    setDetails(newDetails);
+    setLocalDetails(newDetails);
     onChange(newDetails);
   };
 
   const handleAddService = () => {
-    const services = [...(details.services || []), createDefaultService()];
-    const newDetails = { ...details, services };
-    setDetails(newDetails);
+    const newService = createDefaultService();
+    const services = [...(localDetails.services || []), newService];
+    const newDetails = { ...localDetails, services };
+    
+    setLocalDetails(newDetails);
     onChange(newDetails);
   };
 
   const handleRemoveService = (index: number) => {
-    const services = (details.services || []).filter((_, i) => i !== index);
+    const services = (localDetails.services || []).filter((_, i) => i !== index);
     const newOverallTotal = calculateOverallTotalValue(services);
     const newDetails = { 
-      ...details, 
+      ...localDetails, 
       services,
       overallTotalValue: newOverallTotal
     };
     
-    setDetails(newDetails);
+    setLocalDetails(newDetails);
     onChange(newDetails);
   };
 
-  const handleDateChange = (field: 'renewalDate' | 'reviewDate', value: string) => {
-    const date = value ? formatDate(new Date(value)) : '';
-    const newDetails = { ...details, [field]: date };
-
-    if (field === 'renewalDate' && date) {
-      const reviewDate = calculateReviewDate(date);
-      newDetails.reviewDate = reviewDate;
-    }
-
-    setDetails(newDetails);
-    onChange(newDetails);
-  };
-
-  const handleChange = (field: keyof ContractDetails, value: string) => {
-    const newDetails = { ...details, [field]: value };
-    setDetails(newDetails);
-    onChange(newDetails);
-  };
-
-  const handleSaveClick = async () => {
-    try {
-      setIsSaving(true);
-      setError(null);
-      await onSave();
-    } catch (error) {
-      setError('Failed to save contract details. Please try again.');
-      console.error('Error saving contract:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (!details.services) {
-    return null;
-  }
-  
-  const [stitchflowConnection, setStitchflowConnection] = useState('CSV Upload/API coming soon');
-
+  const [stitchflowConnection, setStitchflowConnection] = useState('API Supported');
   useEffect(() => {
     const checkAppStatus = async () => {
       try {
@@ -120,12 +104,13 @@ export function ContractDetailsForm({
       }
     };
     
-    checkAppStatus();
+    if (appId) {
+      checkAppStatus();
+    }
   }, [appId]);
 
   return (
     <div className="space-y-6">
-      
       <div>
         <FormLabel>Stitchflow Connection</FormLabel>
         <div className={`px-4 py-2.5 rounded-lg border ${
@@ -136,37 +121,31 @@ export function ContractDetailsForm({
           {stitchflowConnection}
         </div>
       </div>
-      
-      {/* {error && (
-        <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg">
-          {error}
-        </div>
-      )} */}
 
       <div className="space-y-4">
-        {details.services.map((service, index) => (
-          <ServiceGroup
-            key={service.id}
-            service={service}
-            onChange={(updated) => handleServiceChange(index, updated)}
-            onRemove={() => handleRemoveService(index)}
-            isOnly={details.services.length === 1}
-          />
-        ))}
+        {localDetails.services?.map((service, index) => (
+            <ServiceGroup
+              key={service.id}
+              service={service}
+              onChange={(updated) => handleServiceChange(index, updated)}
+              onRemove={() => handleRemoveService(index)}
+              isOnly={localDetails.services?.length === 1}
+            />
+          ))}
         
         <button
           onClick={handleAddService}
           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
         >
           <Plus className="h-4 w-4" />
-          Add another service
+          Add new service
         </button>
       </div>
 
       <div>
         <FormLabel>Overall Total Value ($)</FormLabel>
         <FormInput
-          value={details.overallTotalValue || ''}
+          value={localDetails.overallTotalValue || ''}
           onChange={(e) => handleChange('overallTotalValue', e.target.value)}
           placeholder="Enter overall total value"
         />
@@ -177,17 +156,54 @@ export function ContractDetailsForm({
           <FormLabel>Renewal Date</FormLabel>
           <FormInput
             type="date"
-            value={details.renewalDate ? parseDate(details.renewalDate)?.toISOString().split('T')[0] : ''}
-            onChange={(e) => handleDateChange('renewalDate', e.target.value)}
+            value={localDetails.renewalDate || ''}
+            onChange={(e) => handleChange('renewalDate', e.target.value)}
           />
         </div>
-
         <div>
           <FormLabel>Access Review Date</FormLabel>
           <FormInput
             type="date"
-            value={details.reviewDate ? parseDate(details.reviewDate)?.toISOString().split('T')[0] : ''}
-            onChange={(e) => handleDateChange('reviewDate', e.target.value)}
+            value={localDetails.reviewDate || ''}
+            onChange={(e) => handleChange('reviewDate', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div>
+          <FormLabel>Primary App Owner</FormLabel>
+          <FormInput
+            value={localDetails.primaryAppOwner || ''}
+            onChange={(e) => handleChange('primaryAppOwner', e.target.value)}
+            placeholder="Enter primary app owner"
+          />
+        </div>
+        <div>
+          <FormLabel>Secondary App Owner</FormLabel>
+          <FormInput
+            value={localDetails.secondaryAppOwner || ''}
+            onChange={(e) => handleChange('secondaryAppOwner', e.target.value)}
+            placeholder="Enter secondary app owner"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div>
+          <FormLabel>Access Review Cycle</FormLabel>
+          <FormSelect
+            value={localDetails.accessReviewCycle || 'Quarterly'}
+            onChange={(e) => handleChange('accessReviewCycle', e.target.value)}
+            options={ACCESS_REVIEW_CYCLES}
+          />
+        </div>
+        <div>
+          <FormLabel>Security Tier</FormLabel>
+          <FormSelect
+            value={localDetails.securityTier || 'Tier 2'}
+            onChange={(e) => handleChange('securityTier', e.target.value)}
+            options={SECURITY_TIERS}
           />
         </div>
       </div>
@@ -196,27 +212,27 @@ export function ContractDetailsForm({
         <FormLabel>Contract File URL</FormLabel>
         <FormInput
           type="url"
-          value={details.contractFileUrl || ''}
+          value={localDetails.contractFileUrl || ''}
           onChange={(e) => handleChange('contractFileUrl', e.target.value)}
           placeholder="Enter contract URL"
         />
       </div>
 
       <div>
-        <FormLabel>Notes/Comments</FormLabel>
+        <FormLabel>Contact Information</FormLabel>
         <FormTextArea
-          value={details.notes || ''}
-          onChange={(e) => handleChange('notes', e.target.value)}
-          placeholder="Enter notes or comments"
+          value={localDetails.contactDetails || ''}
+          onChange={(e) => handleChange('contactDetails', e.target.value)}
+          placeholder="Enter contact details for all associated parties"
         />
       </div>
 
       <div>
-        <FormLabel>Contact Details</FormLabel>
+        <FormLabel>Additional Notes</FormLabel>
         <FormTextArea
-          value={details.contactDetails || ''}
-          onChange={(e) => handleChange('contactDetails', e.target.value)}
-          placeholder="Enter contact details for all associated parties"
+          value={localDetails.notes || ''}
+          onChange={(e) => handleChange('notes', e.target.value)}
+          placeholder="Enter any additional notes or comments"
         />
       </div>
 
@@ -224,21 +240,15 @@ export function ContractDetailsForm({
         <button
           onClick={onCancel}
           className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          disabled={isSaving}
         >
-          Cancel
+          Close
         </button>
-        <button
-          onClick={handleSaveClick}
-          disabled={isSaving}
-          className={`px-4 py-2 text-white rounded-lg transition-colors ${
-            isSaving 
-              ? 'bg-blue-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
+        {/* <button
+          onClick={() => onSubmit?.(localDetails as ContractDetails)}
+          className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
         >
-          {isSaving ? 'Saving...' : 'Save'}
-        </button>
+          Save Changes
+        </button> */}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { AppManagement } from './features/apps/AppManagement';
-import { useCompany } from './contexts/CompanyContext';
+import { useCompany } from './context/CompanyContext';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useCompany();

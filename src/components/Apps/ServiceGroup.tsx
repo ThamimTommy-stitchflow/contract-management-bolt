@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { ServiceDetails } from '../../types/app';
 import { LICENSE_TYPES, PRICING_MODELS } from '../../types/contracts';
@@ -12,30 +12,38 @@ interface ServiceGroupProps {
   isOnly: boolean;
 }
 
-export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGroupProps) {
+export function ServiceGroup({ service: initialService, onChange, onRemove, isOnly }: ServiceGroupProps) {
+  const [localService, setLocalService] = useState<ServiceDetails>(initialService);
+
   const handleChange = (field: keyof ServiceDetails, value: string) => {
     if (field === 'costPerUser' || field === 'numberOfLicenses') {
       const newTotalCost = calculateTotalCost(
-        field === 'costPerUser' ? value : service.costPerUser,
-        field === 'numberOfLicenses' ? value : service.numberOfLicenses
+        field === 'costPerUser' ? value : localService.costPerUser,
+        field === 'numberOfLicenses' ? value : localService.numberOfLicenses
       );
-      onChange({ 
-        ...service, 
+      const updatedService = { 
+        ...localService, 
         [field]: value,
         totalCost: newTotalCost
-      });
+      };
+      setLocalService(updatedService);
+      onChange(updatedService);
     } else {
-      onChange({ ...service, [field]: value });
+      const updatedService = { ...localService, [field]: value };
+      setLocalService(updatedService);
+      onChange(updatedService);
     }
   };
 
   // Calculate total cost when component mounts or when dependencies change
   useEffect(() => {
-    const calculatedTotal = calculateTotalCost(service.costPerUser, service.numberOfLicenses);
-    if (calculatedTotal && calculatedTotal !== service.totalCost) {
-      onChange({ ...service, totalCost: calculatedTotal });
+    const calculatedTotal = calculateTotalCost(localService.costPerUser, localService.numberOfLicenses);
+    if (calculatedTotal && calculatedTotal !== localService.totalCost) {
+      const updatedService = { ...localService, totalCost: calculatedTotal };
+      setLocalService(updatedService);
+      onChange(updatedService);
     }
-  }, [service.costPerUser, service.numberOfLicenses]);
+  }, [localService.costPerUser, localService.numberOfLicenses]);
 
   return (
     <div className="space-y-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
@@ -58,7 +66,7 @@ export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGro
       <div>
         <FormLabel>Service Name</FormLabel>
         <FormInput
-          value={service.name}
+          value={localService.name}
           onChange={(e) => handleChange('name', e.target.value)}
           placeholder="Enter service name"
         />
@@ -68,7 +76,7 @@ export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGro
         <div>
           <FormLabel>License/Subscription Type</FormLabel>
           <FormSelect
-            value={service.licenseType}
+            value={localService.licenseType}
             onChange={(e) => handleChange('licenseType', e.target.value)}
             options={LICENSE_TYPES}
           />
@@ -77,7 +85,7 @@ export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGro
         <div>
           <FormLabel>Pricing Model</FormLabel>
           <FormSelect
-            value={service.pricingModel}
+            value={localService.pricingModel}
             onChange={(e) => handleChange('pricingModel', e.target.value)}
             options={PRICING_MODELS}
           />
@@ -88,7 +96,7 @@ export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGro
         <div>
           <FormLabel>Cost per User ($)</FormLabel>
           <FormInput
-            value={service.costPerUser}
+            value={localService.costPerUser}
             onChange={(e) => handleChange('costPerUser', e.target.value)}
             placeholder="Enter cost per user"
           />
@@ -97,7 +105,7 @@ export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGro
         <div>
           <FormLabel>Number of Licenses</FormLabel>
           <FormInput
-            value={service.numberOfLicenses}
+            value={localService.numberOfLicenses}
             onChange={(e) => handleChange('numberOfLicenses', e.target.value)}
             placeholder="Enter number of licenses"
           />
@@ -107,7 +115,7 @@ export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGro
       <div>
         <FormLabel>Total Cost ($)</FormLabel>
         <FormInput
-          value={service.totalCost}
+          value={localService.totalCost}
           onChange={(e) => handleChange('totalCost', e.target.value)}
           placeholder="Enter total cost"
         />

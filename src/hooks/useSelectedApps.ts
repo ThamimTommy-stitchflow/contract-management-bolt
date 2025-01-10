@@ -3,7 +3,8 @@ import { App, SelectedApp, ContractDetails } from '../types/app';
 import { appService } from '../services/apps';
 import { contractService } from '../services/contracts';
 import { createDefaultService } from '../utils/serviceUtils';
-import { useCompany } from '../contexts/CompanyContext';
+import { useCompany } from '../context/CompanyContext';
+import { transformContractResponse } from '../utils/contractTransformer';
 
 export function useSelectedApps() {
   const [selectedApps, setSelectedApps] = useState<SelectedApp[]>([]);
@@ -43,7 +44,11 @@ export function useSelectedApps() {
               notes: contract.notes || '',
               contactDetails: contract.contact_details || '',
               contractFileUrl: contract.contract_file_url || '',
-              stitchflowConnection: contract.stitchflow_connection
+              stitchflowConnection: contract.stitchflow_connection,
+              primaryAppOwner: contract.primary_app_owner,
+              secondaryAppOwner: contract.secondary_app_owner,
+              accessReviewCycle: contract.access_review_cycle,
+              securityTier: contract.security_tier
             } : {
               services: [createDefaultService()],
               overallTotalValue: '',
@@ -51,7 +56,11 @@ export function useSelectedApps() {
               reviewDate: '',
               notes: '',
               contactDetails: '',
-              stitchflowConnection: 'API Supported'
+              stitchflowConnection: 'API Supported',
+              primaryAppOwner: '',
+              secondaryAppOwner: '',
+              accessReviewCycle: '',
+              securityTier: ''
             }
           };
         });
@@ -117,23 +126,28 @@ export function useSelectedApps() {
     if (!company?.id) {
       throw new Error('No company ID available');
     }
-
+  
     try {
+      // // First update the UI optimistically
+      // setSelectedApps(prev => prev.map(app => 
+      //   app.id === appId 
+      //     ? { 
+      //         ...app, 
+      //         contractDetails: { 
+      //           ...app.contractDetails,
+      //           ...details
+      //         } 
+      //       }
+      //     : app
+      // ));
+  
+      // Then sync with backend
+      console.log('sendingdetails_to_backend', details);
       await contractService.updateContract(appId, { contractDetails: details }, company.id);
-      
-      setSelectedApps(prev => prev.map(app => 
-        app.id === appId 
-          ? { 
-              ...app, 
-              contractDetails: { 
-                ...app.contractDetails,
-                ...details
-              } 
-            }
-          : app
-      ));
     } catch (error) {
       console.error('Failed to update contract details:', error);
+      // Revert the optimistic update on error
+      setSelectedApps(prev => [...prev]); // Trigger re-render with previous state
       throw error;
     }
   }, [company?.id]);

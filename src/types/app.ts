@@ -1,5 +1,5 @@
-import { LicenseType, PricingModel, StitchflowConnection } from './contracts';
-import { Category } from './index';
+import { LicenseType, PricingModel, StitchflowConnection, AccessReviewCycle, SecurityTier } from './contracts';
+import { CATEGORIES } from '../constants/categories';
 
 export interface ServiceDetails {
   id: string;
@@ -14,9 +14,24 @@ export interface ServiceDetails {
 export interface App {
   id: string;
   name: string;
-  category: Category;
+  category: typeof CATEGORIES[number];
   notes?: string;
   is_predefined: boolean;
+  api_supported?: boolean;
+}
+export interface ContractDetails {
+  services: ServiceDetails[];
+  overallTotalValue: string;
+  renewalDate: string;
+  contractFileUrl?: string;
+  notes: string;
+  reviewDate: string;
+  contactDetails: string;
+  stitchflowConnection: StitchflowConnection;
+  primaryAppOwner: string;
+  secondaryAppOwner: string;
+  accessReviewCycle: AccessReviewCycle;
+  securityTier: SecurityTier;
 }
 
 export interface SelectedApp extends App {
@@ -24,13 +39,3 @@ export interface SelectedApp extends App {
   contractDetails?: ContractDetails;
 }
 
-export interface ContractDetails {
-  services: ServiceDetails[];
-  overallTotalValue: string; // Added new field
-  renewalDate: string;
-  contractFileUrl?: string;
-  notes: string;
-  reviewDate: string;
-  contactDetails: string;
-  stitchflowConnection: StitchflowConnection;
-}

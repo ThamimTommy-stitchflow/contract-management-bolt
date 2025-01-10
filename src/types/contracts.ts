@@ -1,8 +1,14 @@
 export type LicenseType = 'Monthly' | 'Annual' | 'Quarterly' | 'Other';
-
 export type PricingModel = 'Flat rated' | 'Tiered' | 'Pro-rated' | 'Feature based';
-
 export type StitchflowConnection = 'API Supported' | 'CSV Upload/API coming soon';
+export type AccessReviewCycle = 'Ad-Hoc' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
+export type SecurityTier = 'Tier 1' | 'Tier 2' | 'Tier 3';
+
+export const LICENSE_TYPES: LicenseType[] = ['Monthly', 'Annual', 'Quarterly', 'Other'];
+export const PRICING_MODELS: PricingModel[] = ['Flat rated', 'Tiered', 'Pro-rated', 'Feature based'];
+export const ACCESS_REVIEW_CYCLES: AccessReviewCycle[] = ['Ad-Hoc', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'];
+export const SECURITY_TIERS: SecurityTier[] = ['Tier 1', 'Tier 2', 'Tier 3'];
+
 
 export interface ServiceRecord {
   id: string;
@@ -31,13 +37,8 @@ export interface ContractRecord {
   contact_details: string | null;
   stitchflow_connection: StitchflowConnection;
   services: ServiceRecord[];
+  primaryAppOwner: string;
+  secondaryAppOwner: string;
+  accessReviewCycle: AccessReviewCycle;
+  securityTier: SecurityTier;
 }
-
-export const LICENSE_TYPES: LicenseType[] = ['Monthly', 'Annual', 'Quarterly', 'Other'];
-
-export const PRICING_MODELS: PricingModel[] = ['Flat rated', 'Tiered', 'Pro-rated', 'Feature based'];
-
-export const STITCHFLOW_CONNECTIONS: Record<StitchflowConnection, StitchflowConnection> = {
-  'API Supported': 'API Supported',
-  'CSV Upload/API coming soon': 'CSV Upload/API coming soon',
-} as const;

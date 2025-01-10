@@ -1,7 +1,23 @@
 import { SelectedApp } from '../types/app';
 import { ContractRecord } from '../types/contracts';
+import { apps as availableApps } from '../data/apps';
+import { createDefaultContractDetails } from './serviceUtils';
+
 
 export function transformContractResponse(contract: any): ContractRecord {
+  const contactDetails = contract.contact_details;
+  let formattedContactDetails = '';
+  
+  if (typeof contactDetails === 'object' && contactDetails !== null) {
+    // Filter out null/undefined values and join all values with line breaks
+    formattedContactDetails = Object.entries(contactDetails)
+      .filter(([_, value]) => value != null && value !== '')
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('\n');
+  } else {
+    formattedContactDetails = contactDetails || '';
+  }
+
   return {
     appId: contract.app_id,
     serviceId: contract.service_id || crypto.randomUUID(),
@@ -18,35 +34,46 @@ export function transformContractResponse(contract: any): ContractRecord {
     reviewDate: contract.review_date,
     contractFileUrl: contract.contract_file_url,
     notes: contract.notes,
-    contactDetails: contract.contact_details,
+    contactDetails: formattedContactDetails,
     stitchflowConnection: contract.stitchflow_connection || 'CSV Upload/API coming soon'
   };
 }
 
 export function transformToContractRecords(selectedApps: SelectedApp[]): ContractRecord[] {
   return selectedApps.flatMap(app => {
-    if (!app.contractDetails?.services) {
-      return [];
-    }
+    const defaultDetails = createDefaultContractDetails();
+    const details = app.contractDetails || defaultDetails;
 
-    return app.contractDetails.services.map(service => ({
+    const services = details.services?.length > 0 
+      ? details.services 
+      : defaultDetails.services;
+
+    const isPreDefinedApp = availableApps.some(a => a.id === app.id);
+    const stitchflowConnection = isPreDefinedApp ? 'API Supported' : 'CSV Upload/API coming soon';
+
+    return services.map(service => ({
       appId: app.id,
       serviceId: service.id || crypto.randomUUID(),
       appName: app.name,
       category: app.category,
       serviceName: service.name || 'Default Service',
-      licenseType: service.licenseType || 'Annual',
-      pricingModel: service.pricingModel || 'Flat rated',
-      costPerUser: service.costPerUser || null,
-      numberOfLicenses: service.numberOfLicenses || null,
-      totalCost: service.totalCost || null,
-      overallTotalValue: app.contractDetails.overallTotalValue || null,
-      renewalDate: app.contractDetails.renewalDate || null,
-      reviewDate: app.contractDetails.reviewDate || null,
-      contractFileUrl: app.contractDetails.contractFileUrl || null,
-      notes: app.contractDetails.notes || null,
-      contactDetails: app.contractDetails.contactDetails || null,
-      stitchflowConnection: app.contractDetails.stitchflowConnection || 'CSV Upload/API coming soon'
+      licenseType: service.licenseType || defaultDetails.services[0].licenseType,
+      pricingModel: service.pricingModel || defaultDetails.services[0].pricingModel,
+      costPerUser: service.costPerUser || '',
+      numberOfLicenses: service.numberOfLicenses || '',
+      totalCost: service.totalCost || '',
+      overallTotalValue: details.overallTotalValue || '',
+      renewalDate: details.renewalDate || '',
+      reviewDate: details.reviewDate || '',
+      contractFileUrl: details.contractFileUrl || '',
+      notes: details.notes || '',
+      contactDetails: details.contactDetails || '',
+      stitchflowConnection,
+      // Add new fields with default values
+      primaryAppOwner: details.primaryAppOwner || defaultDetails.primaryAppOwner,
+      secondaryAppOwner: details.secondaryAppOwner || defaultDetails.secondaryAppOwner,
+      accessReviewCycle: details.accessReviewCycle || defaultDetails.accessReviewCycle,
+      securityTier: details.securityTier || defaultDetails.securityTier
     }));
   });
 }

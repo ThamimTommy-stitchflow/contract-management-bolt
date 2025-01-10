@@ -15,6 +15,7 @@ interface ContractDetailsFormProps {
   onCancel: () => void;
   appId: string;
   onSubmit?: (details: ContractDetails) => Promise<void>;
+  disabled?: boolean;
 }
 
 export function ContractDetailsForm({ 
@@ -22,7 +23,8 @@ export function ContractDetailsForm({
   onChange, 
   onCancel,
   appId,
-  onSubmit
+  onSubmit,
+  disabled = false 
 }: ContractDetailsFormProps) {
   const [localDetails, setLocalDetails] = useState<Partial<ContractDetails>>(() => ({
     services: [createDefaultService()],

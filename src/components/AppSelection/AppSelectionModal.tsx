@@ -8,6 +8,8 @@ import { AppListInput } from './AppListInput';
 import { CATEGORIES } from '../../constants/categories';
 import { App, SelectedApp, ContractDetails } from '../../types/app';
 import { filterAppsBySearch } from '../../utils/filterApps';
+import { appService } from '../../services/apps';
+import { useCompany } from '../../context/CompanyContext';
 
 interface AppSelectionModalProps {
   isOpen: boolean;
@@ -30,6 +32,7 @@ export function AppSelectionModal({
   selectedApps,
   availableApps 
 }: AppSelectionModalProps) {
+  const { company } = useCompany();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showAppListInput, setShowAppListInput] = useState(false);
@@ -43,6 +46,15 @@ export function AppSelectionModal({
     searchQuery
   );
 
+  const handleAppListSubmit = async (appList: string) => {
+    try {
+      await appService.uploadAppList(appList,company?.id ?? '');
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to upload app list:', error);
+    }
+  }
+  
   const handleDone = async () => {
     if (!selectedAppsRef.current) return;
 
@@ -116,7 +128,10 @@ export function AppSelectionModal({
 
               {showAppListInput && (
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <AppListInput onSubmit={onBulkSelect} />
+                  <AppListInput 
+                    onSubmit={handleAppListSubmit}
+                    onCancel={() => setShowAppListInput(false)}
+                  />
                 </div>
               )}
               

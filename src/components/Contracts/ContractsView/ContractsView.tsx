@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { ContractRecord } from '../../../types/contracts';
 import { ContractDetails } from '../../../types/app';
 import { groupContractsByApp } from '../../../utils/contractGrouping';
@@ -12,13 +12,15 @@ import { useAppDetails } from '../../../hooks/useAppDetails';
 
 interface ContractsViewProps {
   contracts: ContractRecord[];
-  onEdit?: (appId: string, details: Partial<ContractDetails>) => void;
+  onEdit?: (appId: string) => void;
   onRemove?: (appId: string) => void;
+  onUpdateDetails: (appId: string, details: Partial<ContractDetails>) => Promise<void>;
 }
 
-export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProps) {
+export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: ContractsViewProps) {
   // 1. Move all hooks to the top
   const [sortBy, setSortBy] = useState<SortOption>('renewal-priority');
+  const [localContracts, setLocalContracts] = useState(contracts);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
     appId: string;
@@ -29,15 +31,19 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
     appName: ''
   });
 
+  // Update localContracts when contracts prop changes
+  useEffect(() => {
+    setLocalContracts(contracts);
+  }, [contracts]);
+
   // 2. Extract app IDs and use app details hook
-  const appIds = useMemo(() => contracts.map(contract => contract.app_id), [contracts]);
-  const { appDetailsMap, isLoading } = useAppDetails(appIds);
+  const appIds = useMemo(() => localContracts.map(contract => contract.app_id), [localContracts]);
+  const { appDetailsMap, isLoading: isLoadingApps } = useAppDetails(appIds);
   
   console.log('in ContractsView contracts', contracts);
-
   // 3. Memoize derived data
   const enrichedContracts = useMemo(() => {
-    return contracts.map(contract => {
+    return localContracts.map(contract => {
       const appDetails = appDetailsMap.get(contract.app_id);
       return {
         ...contract,
@@ -67,24 +73,67 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
         }))
       };
     });
-  }, [contracts, appDetailsMap]);
+  }, [localContracts, appDetailsMap]);
 
   const groupedContracts = useMemo(() => 
     groupContractsByApp(enrichedContracts), 
     [enrichedContracts]
   );
 
-
   const sortedContracts = useMemo(() => 
     sortContracts(groupedContracts, sortBy), 
     [groupedContracts, sortBy]
   );
 
-
   const totalContractValue = useMemo(() => 
     calculateTotalContractValue(groupedContracts), 
     [groupedContracts]
   );
+
+  // Handle contract update
+  const handleContractUpdate = async (appId: string, details: Partial<ContractDetails>) => {
+    try {
+      await onUpdateDetails(appId, details);
+      // Update local state after successful backend update
+      setLocalContracts(prevContracts => 
+        prevContracts.map(contract => {
+          if (contract.app_id === appId) {
+            // Transform the services to match ServiceRecord type
+            const updatedServices = details.services?.map(service => ({
+              id: service.id,
+              name: service.name,
+              license_type: service.licenseType,
+              pricing_model: service.pricingModel,
+              cost_per_user: service.costPerUser ? parseFloat(service.costPerUser) : null,
+              number_of_licenses: service.numberOfLicenses ? parseFloat(service.numberOfLicenses) : null,
+              total_cost: service.totalCost ? parseFloat(service.totalCost) : null,
+              contractId: contract.id,
+              createdAt: contract.createdAt,
+              updatedAt: new Date().toISOString()
+            }));
+
+            return {
+              ...contract,
+              overall_total_value: details.overallTotalValue ? parseFloat(details.overallTotalValue) : contract.overall_total_value,
+              renewal_date: details.renewalDate || contract.renewal_date,
+              review_date: details.reviewDate || contract.review_date,
+              notes: details.notes || contract.notes,
+              contact_details: details.contactDetails || contract.contact_details,
+              primaryAppOwner: details.primaryAppOwner || contract.primaryAppOwner,
+              secondaryAppOwner: details.secondaryAppOwner || contract.secondaryAppOwner,
+              accessReviewCycle: details.accessReviewCycle || contract.accessReviewCycle,
+              securityTier: details.securityTier || contract.securityTier,
+              services: updatedServices || contract.services
+            };
+          }
+          return contract;
+        })
+      );
+    } catch (error) {
+      console.error('Failed to update contract:', error);
+      throw error;
+    }
+  };
 
   // 4. Event handlers using useCallback
   const handleDeleteClick = useCallback((appId: string, appName: string) => {
@@ -95,9 +144,13 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
     });
   }, []);
 
-  const handleDeleteConfirm = useCallback(() => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (onRemove && deleteConfirmation.appId) {
-      onRemove(deleteConfirmation.appId);
+      await onRemove(deleteConfirmation.appId);
+      // Update local state after successful deletion
+      setLocalContracts(prevContracts => 
+        prevContracts.filter(contract => contract.app_id !== deleteConfirmation.appId)
+      );
     }
     setDeleteConfirmation({
       isOpen: false,
@@ -114,14 +167,17 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
     });
   }, []);
 
-  const handleSave = useCallback((appId: string, details: Partial<ContractDetails>) => {
-    if (onEdit) {
-      onEdit(appId, details);
-    }
-  }, [onEdit]);
+  // 5. Early return for loading state
+  if (isLoadingApps) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
-  // 5. Early return for empty state
-  if (contracts.length === 0) {
+  // 6. Early return for empty state
+  if (localContracts.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
         <p className="text-gray-500">
@@ -131,7 +187,7 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
     );
   }
 
-  // 6. Render with memoized data
+  // 7. Render with memoized data
   return (
     <div className="space-y-6">
       <ContractHeader 
@@ -145,7 +201,7 @@ export function ContractsView({ contracts, onEdit, onRemove }: ContractsViewProp
           <EditableContractCard
             key={contract.appId}
             contract={contract}
-            onSave={handleSave}
+            onSave={handleContractUpdate}
             onRemove={onRemove ? 
               () => handleDeleteClick(contract.appId, contract.appName) : 
               undefined

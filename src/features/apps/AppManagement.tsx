@@ -99,11 +99,15 @@ export function AppManagement() {
           contracts={contracts} 
           onEdit={handleEditContract}
           onRemove={handleRemoveContract}
+          onUpdateDetails={handleContractUpdate}
         />
 
         <AppSelectionModal
           isOpen={isAppSelectionOpen}
-          onClose={() => setIsAppSelectionOpen(false)}
+          onClose={() => {
+            setIsAppSelectionOpen(false);
+            window.location.reload();
+          }}
           onSelectApp={handleSelectApp}
           onUpdateDetails={handleContractUpdate}
           onRemoveApp={handleRemoveApp}

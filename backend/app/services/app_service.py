@@ -1,6 +1,8 @@
 from typing import List, Optional
 from supabase import Client
-from ..models.app import AppCreate, AppResponse, AppCategory, CompanyAppCreate
+from ..models.app import AppCreate, AppResponse, AppCategory, CompanyAppCreate, CompanyAppWithContractResponse
+from ..models.contract import ContractResponse
+from ..models.contract import ContractBase, ServiceCreate, LicenseType, PricingModel
 
 class AppService:
     def __init__(self, db: Client):
@@ -44,6 +46,18 @@ class AppService:
     async def select_app(self, app_selection: CompanyAppCreate) -> bool:
         """Select an app for a company"""
         try:
+            # Check if this specific company-app combination already exists
+            existing = self.db.table('company_apps')\
+                .select('*')\
+                .eq('company_id', app_selection.company_id)\
+                .eq('app_id', app_selection.app_id)\
+                .execute()
+            
+            if existing.data:
+                # This company already has this app selected
+                return True
+            
+            # Create new company-app association
             response = self.db.table('company_apps')\
                 .insert(app_selection.model_dump())\
                 .execute()
@@ -91,20 +105,14 @@ class AppService:
             raise
 
     async def get_app_by_name(self, name: str) -> Optional[AppResponse]:
-        """Get app by name with case-insensitive exact matching"""
+        """Get app by name (case-insensitive)"""
         try:
-            response = self.db.table('apps')\
-                .select('*')\
-                .ilike('name', name)\
-                .execute()
-                
-            if not response.data:
-                return None
-                
-            return AppResponse(**response.data[0])
+            result = self.db.table('apps').select('*').ilike('name', name).execute()
+            if result.data and len(result.data) > 0:
+                return AppResponse(**result.data[0])
+            return None
         except Exception as e:
-            print(f"Error getting app by name: {e}")
-            raise
+            raise Exception(f"Error getting app by name: {str(e)}")
 
     async def get_app_by_id(self, app_id: str) -> Optional[AppResponse]:
         """Get app details by ID"""
@@ -121,4 +129,95 @@ class AppService:
             return AppResponse(**response.data)
         except Exception as e:
             print(f"Error getting app by ID: {e}")
+            raise
+
+    async def get_company_apps_with_contracts(self, company_id: str) -> List[AppResponse]:
+        """Get all apps selected by a company"""
+        try:
+            # Get all company apps with their details
+            apps_response = self.db.table('company_apps')\
+                .select('apps!inner(*)')\
+                .eq('company_id', company_id)\
+                .execute()
+            
+            if not apps_response.data:
+                return []
+
+            # Process the response to create AppResponse objects
+            result = []
+            for row in apps_response.data:
+                app_data = row['apps']
+                app = AppResponse(
+                    id=app_data['id'],
+                    name=app_data['name'],
+                    category=app_data['category'],
+                    is_predefined=app_data['is_predefined'],
+                    api_supported=app_data.get('api_supported', False)
+                )
+                result.append(app)
+
+            return result
+        except Exception as e:
+            print(f"Error getting company apps: {e}")
+            raise
+
+    async def select_app_with_defaults(self, app_selection: CompanyAppCreate) -> bool:
+        """Select an app for a company and create default contract and service"""
+        try:
+            # First select the app
+            await self.select_app(app_selection)
+            
+            # Create default contract using ContractBase
+            contract_data = ContractBase(
+                company_id=app_selection.company_id,
+                app_id=app_selection.app_id,
+                renewal_date=None,
+                review_date=None,
+                overall_total_value=None,
+                contract_file_url=None,
+                notes=None,
+                contact_details=None,
+                stitchflow_connection="API Supported",
+                primary_app_owner=None,
+                secondary_app_owner=None,
+                access_review_cycle='Ad-Hoc',
+                security_tier='Tier 1'
+            ).model_dump()
+            
+            # Create contract
+            contract_response = self.db.table('contracts')\
+                .insert(contract_data)\
+                .execute()
+            
+            if not contract_response.data:
+                raise Exception("Failed to create contract")
+
+            contract_id = contract_response.data[0]['id']
+            print("contract_id", contract_id)
+            
+            # Debug the service data
+            service_data = {
+                'contract_id': contract_id,
+                'name': "Default Service",
+                'license_type': LicenseType.MONTHLY,
+                'pricing_model': PricingModel.FLAT,
+                'cost_per_user': None,
+                'number_of_licenses': None,
+                'total_cost': None
+            }
+            print("service_data before model_dump:", service_data)
+            
+            # Create service directly with dict instead of using model
+            service_response = self.db.table('services')\
+                .insert(service_data)\
+                .execute()
+            
+            if not service_response.data:
+                raise Exception("Failed to create service")
+            
+            print("service created successfully")
+            return True
+            
+        except Exception as e:
+            print(f"Error in select_app_with_defaults: {e}")
             raise

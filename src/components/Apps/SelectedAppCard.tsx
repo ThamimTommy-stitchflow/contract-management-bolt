@@ -1,6 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
-import { ContractDetails, SelectedApp } from '../../types/app';
+import { ContractDetails, SelectedApp, ServiceDetails } from '../../types/app';
+import { StitchflowConnection, AccessReviewCycle, SecurityTier } from '../../types/contracts';
 import { ContractDetailsForm } from './ContractDetailsForm';
 import { useScrollToTop } from '../../hooks/useScrollToTop';
 import { isEqual } from 'lodash';
@@ -28,7 +29,42 @@ export const SelectedAppCard = forwardRef<{
   const scrollToTop = useScrollToTop();
 
   useImperativeHandle(ref, () => ({
-    getLocalChanges: () => localDetails,
+    getLocalChanges: () => {
+      if (!localDetails || !app.contractDetails) return undefined;
+      
+      // Only include fields that have actually changed
+      const changes: Partial<ContractDetails> = {};
+      const fields: Array<keyof ContractDetails> = [
+        'services', 'overallTotalValue', 'renewalDate', 'contractFileUrl',
+        'notes', 'reviewDate', 'contactDetails', 'stitchflowConnection',
+        'primaryAppOwner', 'secondaryAppOwner', 'accessReviewCycle', 'securityTier'
+      ];
+      
+      let hasChanges = false;
+      fields.forEach(key => {
+        const localValue = localDetails[key];
+        const originalValue = app.contractDetails?.[key];
+        
+        // Only include the field if it has changed and is not undefined
+        if (localValue !== undefined && !isEqual(localValue, originalValue)) {
+          hasChanges = true;
+          // Ensure we're only including fields that exist in ContractDetails
+          if (key === 'services') {
+            changes.services = localValue as ServiceDetails[];
+          } else if (key === 'stitchflowConnection') {
+            changes.stitchflowConnection = localValue as StitchflowConnection;
+          } else if (key === 'accessReviewCycle') {
+            changes.accessReviewCycle = localValue as AccessReviewCycle;
+          } else if (key === 'securityTier') {
+            changes.securityTier = localValue as SecurityTier;
+          } else {
+            changes[key] = localValue as string;
+          }
+        }
+      });
+      
+      return hasChanges ? changes : undefined;
+    },
     hasChanges: () => !isEqual(localDetails, app.contractDetails)
   }));
 
@@ -92,6 +128,7 @@ export const SelectedAppCard = forwardRef<{
             onChange={handleUpdateDetails}
             onCancel={handleExpandToggle}
             appId={app.id}
+            showActions={false}
           />
         </div>
       )}

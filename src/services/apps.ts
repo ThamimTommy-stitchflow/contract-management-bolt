@@ -12,6 +12,11 @@ export const appService = {
     return response.data;
   },
 
+  async getCompanyAppsWithDetails(companyId: string) {
+    const response = await api.get(`/apps/company/${companyId}/with-contracts`);
+    return response.data;
+  },
+
   async selectApp(appId: string, companyId: string) {
     const response = await api.post('/apps/select', {
       app_id: appId,
@@ -42,5 +47,4 @@ export const appService = {
     });
     return response.data;
   }
-
 };

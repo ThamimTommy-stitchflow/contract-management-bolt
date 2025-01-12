@@ -2,9 +2,36 @@ import { useState, useEffect, useCallback } from 'react';
 import { App, SelectedApp, ContractDetails } from '../types/app';
 import { appService } from '../services/apps';
 import { contractService } from '../services/contracts';
-import { createDefaultService } from '../utils/serviceUtils';
+import { createDefaultService, createDefaultContractDetails } from '../utils/serviceUtils';
 import { useCompany } from '../context/CompanyContext';
-import { transformContractResponse } from '../utils/contractTransformer';
+import { AccessReviewCycle, SecurityTier, StitchflowConnection } from '../types/contracts';
+
+interface ContractService {
+  id: string;
+  name: string;
+  license_type: string;
+  pricing_model: string;
+  cost_per_user: number | null;
+  number_of_licenses: number | null;
+  total_cost: number | null;
+}
+
+interface Contract {
+  id: string;
+  app_id: string;
+  services: ContractService[];
+  overall_total_value: number | null;
+  renewal_date: string | null;
+  review_date: string | null;
+  notes: string | null;
+  contact_details: string | null;
+  contract_file_url: string | null;
+  stitchflow_connection: string;
+  primary_app_owner: string | null;
+  secondary_app_owner: string | null;
+  access_review_cycle: string | null;
+  security_tier: string | null;
+}
 
 export function useSelectedApps() {
   const [selectedApps, setSelectedApps] = useState<SelectedApp[]>([]);
@@ -22,14 +49,14 @@ export function useSelectedApps() {
         const apps = await appService.getCompanyApps(company.id);
         const contracts = await contractService.getCompanyContracts(company.id);
         console.log('apps', apps);
-        const appsWithDetails = apps.map(app => {
-          const contract = contracts.find(c => c.app_id === app.id);
+        const appsWithDetails = apps.map((app: App) => {
+          const contract = contracts.find((c: Contract) => c.app_id === app.id);
           
           return {
             ...app,
             selected: true,
             contractDetails: contract ? {
-              services: contract.services.map(service => ({
+              services: contract.services.map((service: ContractService) => ({
                 id: service.id,
                 name: service.name,
                 licenseType: service.license_type,
@@ -44,31 +71,19 @@ export function useSelectedApps() {
               notes: contract.notes || '',
               contactDetails: contract.contact_details || '',
               contractFileUrl: contract.contract_file_url || '',
-              stitchflowConnection: contract.stitchflow_connection,
+              stitchflowConnection: contract.stitchflow_connection as StitchflowConnection,
               primaryAppOwner: contract.primary_app_owner,
               secondaryAppOwner: contract.secondary_app_owner,
               accessReviewCycle: contract.access_review_cycle,
               securityTier: contract.security_tier
-            } : {
-              services: [createDefaultService()],
-              overallTotalValue: '',
-              renewalDate: '',
-              reviewDate: '',
-              notes: '',
-              contactDetails: '',
-              stitchflowConnection: 'API Supported',
-              primaryAppOwner: '',
-              secondaryAppOwner: '',
-              accessReviewCycle: '',
-              securityTier: ''
-            }
+            } : createDefaultContractDetails()
           };
         });
-        console.log('appsWithDetails', appsWithDetails);
+
         setSelectedApps(appsWithDetails);
+        setIsLoading(false);
       } catch (error) {
-        console.error('Failed to load selected apps:', error);
-      } finally {
+        console.error('Error loading selected apps:', error);
         setIsLoading(false);
       }
     };
@@ -82,22 +97,31 @@ export function useSelectedApps() {
     }
 
     try {
+      // First add the app to company_apps
       await appService.selectApp(app.id, company.id);
       
+      // Create default contract details
+      const defaultContractDetails = createDefaultContractDetails();
+      
+      // Create contract with default service
+      const contractData = {
+        contractDetails: {
+          ...defaultContractDetails,
+          services: [createDefaultService()],
+          stitchflowConnection: app.is_predefined ? 'API Supported' as StitchflowConnection : 'CSV Upload/API coming soon' as StitchflowConnection
+        }
+      };
+      
+      // Create contract record
+      await contractService.createContract(app.id, contractData, company.id);
+      
+      // Update UI
       setSelectedApps(prev => {
         if (prev.some(a => a.id === app.id)) return prev;
         return [...prev, {
           ...app,
           selected: true,
-          contractDetails: {
-            services: [createDefaultService()],
-            overallTotalValue: '',
-            renewalDate: '',
-            reviewDate: '',
-            notes: '',
-            contactDetails: '',
-            stitchflowConnection: 'API Supported'
-          }
+          contractDetails: defaultContractDetails
         }];
       });
     } catch (error) {
@@ -128,26 +152,47 @@ export function useSelectedApps() {
     }
   
     try {
-      // // First update the UI optimistically
-      // setSelectedApps(prev => prev.map(app => 
-      //   app.id === appId 
-      //     ? { 
-      //         ...app, 
-      //         contractDetails: { 
-      //           ...app.contractDetails,
-      //           ...details
-      //         } 
-      //       }
-      //     : app
-      // ));
-  
-      // Then sync with backend
-      console.log('sendingdetails_to_backend', details);
+      // Update backend
       await contractService.updateContract(appId, { contractDetails: details }, company.id);
+      
+      // Fetch all contracts to ensure we have the latest data
+      const contracts = await contractService.getCompanyContracts(company.id);
+      const updatedContract = contracts.find(c => c.app_id === appId);
+      
+      if (updatedContract) {
+        // Update local state with the fresh data
+        setSelectedApps(prev => prev.map(app => 
+          app.id === appId 
+            ? { 
+                ...app, 
+                contractDetails: {
+                  services: updatedContract.services.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    licenseType: s.license_type,
+                    pricingModel: s.pricing_model,
+                    costPerUser: s.cost_per_user?.toString() || '',
+                    numberOfLicenses: s.number_of_licenses?.toString() || '',
+                    totalCost: s.total_cost?.toString() || ''
+                  })),
+                  overallTotalValue: updatedContract.overall_total_value?.toString() || '',
+                  renewalDate: updatedContract.renewal_date || '',
+                  reviewDate: updatedContract.review_date || '',
+                  notes: updatedContract.notes || '',
+                  contactDetails: updatedContract.contact_details || '',
+                  contractFileUrl: updatedContract.contract_file_url || '',
+                  stitchflowConnection: updatedContract.stitchflow_connection as StitchflowConnection,
+                  primaryAppOwner: updatedContract.primary_app_owner || '',
+                  secondaryAppOwner: updatedContract.secondary_app_owner || '',
+                  accessReviewCycle: updatedContract.access_review_cycle as AccessReviewCycle,
+                  securityTier: updatedContract.security_tier as SecurityTier
+                }
+              }
+            : app
+        ));
+      }
     } catch (error) {
       console.error('Failed to update contract details:', error);
-      // Revert the optimistic update on error
-      setSelectedApps(prev => [...prev]); // Trigger re-render with previous state
       throw error;
     }
   }, [company?.id]);
@@ -170,10 +215,25 @@ export function useSelectedApps() {
 
       setCustomApps(prev => [...prev, ...newCustomApps]);
 
-      // Select all apps
+      // Select all apps and create contracts
       for (const app of apps) {
         if (!selectedApps.some(p => p.id === app.id)) {
           await appService.selectApp(app.id, company.id);
+          
+          // Create default contract details
+          const defaultContractDetails = createDefaultContractDetails();
+          
+          // Create contract with default service
+          const contractData = {
+            contractDetails: {
+              ...defaultContractDetails,
+              services: [createDefaultService()],
+              stitchflowConnection: app.is_predefined ? 'API Supported' as StitchflowConnection : 'CSV Upload/API coming soon' as StitchflowConnection
+            }
+          };
+          
+          // Create contract record
+          await contractService.createContract(app.id, contractData, company.id);
         }
       }
 
@@ -183,14 +243,7 @@ export function useSelectedApps() {
           .map(app => ({
             ...app,
             selected: true,
-            contractDetails: {
-              services: [createDefaultService()],
-              overallTotalValue: '',
-              renewalDate: '',
-              reviewDate: '',
-              notes: '',
-              contactDetails: '',
-            }
+            contractDetails: createDefaultContractDetails()
           }));
         return [...prev, ...newApps];
       });
@@ -207,6 +260,6 @@ export function useSelectedApps() {
     handleRemoveApp,
     handleUpdateDetails,
     handleBulkSelect,
-    isLoading,
+    isLoading
   };
 }

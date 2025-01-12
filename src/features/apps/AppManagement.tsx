@@ -30,9 +30,35 @@ export function AppManagement() {
     customApps
   } = useSelectedApps();
 
-  const { contracts, removeContract } = useContractStorage();
-  const { syncContracts } = useContractSync(selectedApps);
+  const { contracts, removeContract, setContracts } = useContractStorage();
   const { company } = useCompany();
+
+  // Update contracts whenever selectedApps changes or when contract-updated event is fired
+  useEffect(() => {
+    const updateContractView = async () => {
+      if (!company?.id) return;
+      try {
+        const updatedContracts = await contractService.getCompanyContracts(company.id);
+        setContracts(updatedContracts);
+      } catch (error) {
+        console.error('Failed to update contracts:', error);
+      }
+    };
+
+    // Initial update
+    updateContractView();
+
+    // Listen for contract updates
+    const handleContractUpdate = () => {
+      updateContractView();
+    };
+
+    window.addEventListener('contract-updated', handleContractUpdate);
+
+    return () => {
+      window.removeEventListener('contract-updated', handleContractUpdate);
+    };
+  }, [company?.id, selectedApps, setContracts]);
 
   // Fetch apps from backend
   useEffect(() => {
@@ -61,10 +87,21 @@ export function AppManagement() {
     setIsUploadModalOpen(false);
   }, [handleBulkSelect]);
 
-  const handleEditContract = useCallback((appId: string) => {
-    setEditingAppId(appId);
-    setIsAppSelectionOpen(true);
-  }, []);
+  const handleEditContract = useCallback(async (appId: string) => {
+    if (!company?.id) return;
+    
+    try {
+      // Fetch fresh contract details
+      const updatedContracts = await contractService.getCompanyContracts(company.id);
+      setContracts(updatedContracts);
+      
+      // Set editing state and open modal
+      setEditingAppId(appId);
+      setIsAppSelectionOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch contract details:', error);
+    }
+  }, [company?.id]);
 
   const handleRemoveContract = useCallback((appId: string) => {
     removeContract(appId);
@@ -73,16 +110,17 @@ export function AppManagement() {
 
   const handleContractUpdate = useCallback(async (appId: string, details: Partial<ContractDetails>) => {
     if (!company?.id) return;
-
     try {
-      console.log('in AppManagement handleContractUpdate', details);
       await handleUpdateDetails(appId, details);
-      // await syncContracts();
+      // Fetch updated contracts and trigger a re-render
+      const updatedContracts = await contractService.getCompanyContracts(company.id);
+      setContracts(updatedContracts);
+      // Close the modal without reopening it
+      setIsAppSelectionOpen(false);
     } catch (error) {
       console.error('Failed to update contract:', error);
-      // You might want to show an error message to the user here
     }
-  }, [company?.id, handleUpdateDetails, syncContracts]);
+  }, [company?.id, handleUpdateDetails, setContracts]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -106,7 +144,7 @@ export function AppManagement() {
           isOpen={isAppSelectionOpen}
           onClose={() => {
             setIsAppSelectionOpen(false);
-            window.location.reload();
+            setEditingAppId(null);
           }}
           onSelectApp={handleSelectApp}
           onUpdateDetails={handleContractUpdate}
@@ -114,6 +152,8 @@ export function AppManagement() {
           onBulkSelect={handleBulkSelect}
           selectedApps={selectedApps}
           availableApps={allApps}
+          editingAppId={editingAppId}
+          currentContract={editingAppId ? contracts.find(c => c.app_id === editingAppId) : undefined}
         />
 
         <ContractUploadModal

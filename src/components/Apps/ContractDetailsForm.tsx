@@ -16,6 +16,8 @@ interface ContractDetailsFormProps {
   appId: string;
   onSubmit?: (details: ContractDetails) => Promise<void>;
   disabled?: boolean;
+  isSaving?: boolean;
+  showActions?: boolean;
 }
 
 export function ContractDetailsForm({ 
@@ -24,7 +26,9 @@ export function ContractDetailsForm({
   onCancel,
   appId,
   onSubmit,
-  disabled = false 
+  disabled = false,
+  isSaving = false,
+  showActions = true
 }: ContractDetailsFormProps) {
   const [localDetails, setLocalDetails] = useState<Partial<ContractDetails>>(() => ({
     services: [createDefaultService()],
@@ -108,6 +112,10 @@ export function ContractDetailsForm({
       checkAppStatus();
     }
   }, [appId]);
+
+  const handleSave = () => {
+    onSubmit?.(localDetails as ContractDetails);
+  };
 
   return (
     <div className="space-y-6">
@@ -236,20 +244,42 @@ export function ContractDetailsForm({
         />
       </div>
 
-      <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-        >
-          Close
-        </button>
-        {/* <button
-          onClick={() => onSubmit?.(localDetails as ContractDetails)}
-          className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-        >
-          Save Changes
-        </button> */}
-      </div>
+      {showActions && (
+        <div className="flex justify-end space-x-4 mt-6 pt-4 border-t">
+          <button
+            onClick={onCancel}
+            disabled={isSaving}
+            className={`px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isSaving ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin h-4 w-4">
+                  <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+                <span>Saving...</span>
+              </div>
+            ) : (
+              'Save'
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+export default ContractDetailsForm;

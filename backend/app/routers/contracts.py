@@ -170,7 +170,7 @@ async def process_contract_file(
             # Check if app exists, if not create it
             app_data = {
                 "name": extracted_data.app_name,
-                "category": extracted_data.category,
+                "category": 'CSV Uploads',
                 "api_supported": False,
                 "is_predefined": False
             }
@@ -256,7 +256,9 @@ async def process_contract_file(
                 contact_details=extracted_data.contact_details,
                 overall_total_value=extracted_data.overall_total_cost,
                 services=extracted_data.services,
-                stitchflow_connection=stitchflow_connection
+                stitchflow_connection=stitchflow_connection,
+                access_review_cycle='Quarterly',
+                security_tier='Tier 1'
             )
             
             print("Contract data:", contract_data.model_dump())

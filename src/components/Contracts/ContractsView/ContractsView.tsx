@@ -90,6 +90,7 @@ export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: 
     [groupedContracts]
   );
 
+  console.log('in ContractsView sortedContracts', sortedContracts);
   // Handle contract update
   const handleContractUpdate = async (appId: string, details: Partial<ContractDetails>) => {
     try {
@@ -167,22 +168,22 @@ export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: 
     });
   }, []);
 
-  // 5. Early return for loading state
-  if (isLoadingApps) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  // 6. Early return for empty state
+  // 5. Early return for empty state
   if (localContracts.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
         <p className="text-gray-500">
           No contracts available. Add apps and complete their details to see them here.
         </p>
+      </div>
+    );
+  }
+
+  // 6. Early return for loading state
+  if (isLoadingApps) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }

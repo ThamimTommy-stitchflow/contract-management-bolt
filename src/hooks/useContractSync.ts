@@ -1,25 +1,27 @@
 import { useCallback, useState } from 'react';
-import { SelectedApp } from '../types/app';
 import { useContractStorage } from './useContractStorage';
+import { useCompany } from '../context/CompanyContext';
+import { contractService } from '../services/contracts';
 
-export function useContractSync(selectedApps: SelectedApp[]) {
-  const { updateContracts } = useContractStorage();
+export function useContractSync() {
+  const { setContracts } = useContractStorage();
+  const { company } = useCompany();
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sync contracts whenever selectedApps changes
   const syncContracts = useCallback(async () => {
-    if (isSyncing) return;
+    if (isSyncing || !company?.id) return;
     
     setIsSyncing(true);
     try {
-      await updateContracts(selectedApps);
+      const freshContracts = await contractService.getCompanyContracts(company.id);
+      setContracts(freshContracts);
     } catch (error) {
       console.error('Sync failed:', error);
       throw error;
     } finally {
       setIsSyncing(false);
     }
-  }, [selectedApps, updateContracts, isSyncing]);
+  }, [company?.id, isSyncing, setContracts]);
 
   return { syncContracts, isSyncing };
 }

@@ -5,20 +5,9 @@ import { transformToContractRecords, transformContractResponse } from '../utils/
 import { contractService } from '../services/contracts';
 import { useCompany } from '../context/CompanyContext';
 
-
 export function useContractStorage() {
-  // const [contracts, setContracts] = useState<ContractRecord[]>(() => {
-  //   const storedContracts = storage.get<ContractRecord[]>(STORAGE_KEY);
-  //   return storedContracts || [];
-  // });
-
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const { company } = useCompany();
-
-  // Persist contracts whenever they change
-  // useEffect(() => {
-  //   storage.set(STORAGE_KEY, contracts);
-  // }, [contracts]);
 
   // Load contracts on mount
   useEffect(() => {
@@ -27,8 +16,6 @@ export function useContractStorage() {
       
       try {
         const response = await contractService.getCompanyContracts(company.id);
-        // const transformedContracts = response.map(transformContractResponse);
-        console.log(response)
         setContracts(response);
       } catch (error) {
         console.error('Failed to load contracts:', error);
@@ -43,31 +30,27 @@ export function useContractStorage() {
     }
 
     try {
-      const updatedContracts:any[] = [];
+      const updatedContracts: ContractRecord[] = [];
       
       await Promise.all(selectedApps.map(async (app) => {
         if (!app.contractDetails) return;
 
         const contractData = {
           contractDetails: {
-            renewalDate: app.contractDetails.renewalDate || '',
-            reviewDate: app.contractDetails.reviewDate || '',
-            overallTotalValue: app.contractDetails.overallTotalValue || '',
-            notes: app.contractDetails.notes || '',
-            contactDetails: app.contractDetails.contactDetails || '',
-            services: app.contractDetails.services.map(service => ({
-              name: service.name,
-              licenseType: service.licenseType,
-              pricingModel: service.pricingModel,
-              costPerUser: service.costPerUser,
-              numberOfLicenses: service.numberOfLicenses,
-              totalCost: service.totalCost
+            renewalDate: app.contractDetails.renewalDate,
+            reviewDate: app.contractDetails.reviewDate,
+            overallTotalValue: app.contractDetails.overallTotalValue,
+            notes: app.contractDetails.notes,
+            contactDetails: app.contractDetails.contactDetails,
+            services: app.contractDetails.services?.map(service => ({
+              ...service,
+              id: service.id || crypto.randomUUID()
             })),
-            stitchflowConnection: app.contractDetails.stitchflowConnection || null,
-            primaryAppOwner: app.contractDetails.primaryAppOwner || '',
-            secondaryAppOwner: app.contractDetails.secondaryAppOwner || '',
-            accessReviewCycle: app.contractDetails.accessReviewCycle || 'Monthly',
-            securityTier: app.contractDetails.securityTier || 'Tier 3'
+            stitchflowConnection: app.contractDetails.stitchflowConnection,
+            primaryAppOwner: app.contractDetails.primaryAppOwner,
+            secondaryAppOwner: app.contractDetails.secondaryAppOwner,
+            accessReviewCycle: app.contractDetails.accessReviewCycle,
+            securityTier: app.contractDetails.securityTier
           }
         };
 
@@ -77,15 +60,28 @@ export function useContractStorage() {
             contractData,
             company.id
           );
-        // Need to change the transformContractResponse to match the updatedContract structure
-        updatedContracts.push(transformContractResponse(updatedContract));
-      }catch (error) {
-        console.error(`Failed to update contract for app ${app.id}:`, error);
-        // Consider how you want to handle partial failures
+          if (updatedContract) {
+            updatedContracts.push(transformContractResponse(updatedContract));
+          }
+        } catch (error) {
+          console.error(`Failed to update contract for app ${app.id}:`, error);
         }
       }));
       
-      setContracts(updatedContracts);
+      if (updatedContracts.length > 0) {
+        setContracts(prev => {
+          const updated = [...prev];
+          updatedContracts.forEach(newContract => {
+            const index = updated.findIndex(c => c.app_id === newContract.app_id);
+            if (index !== -1) {
+              updated[index] = newContract;
+            } else {
+              updated.push(newContract);
+            }
+          });
+          return updated;
+        });
+      }
       return updatedContracts;
     } catch (error) {
       console.error('Failed to update contracts:', error);
@@ -94,7 +90,7 @@ export function useContractStorage() {
   }, [company?.id]);
 
   const removeContract = useCallback((appId: string) => {
-    setContracts(prev => prev.filter(contract => contract.appId !== appId));
+    setContracts(prev => prev.filter(contract => contract.app_id !== appId));
   }, []);
 
   return {

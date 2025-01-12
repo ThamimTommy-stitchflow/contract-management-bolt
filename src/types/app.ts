@@ -19,19 +19,20 @@ export interface App {
   is_predefined: boolean;
   api_supported?: boolean;
 }
+
 export interface ContractDetails {
   services: ServiceDetails[];
-  overallTotalValue: string;
-  renewalDate: string;
+  overallTotalValue: string | undefined;
+  renewalDate: string | undefined;
   contractFileUrl?: string;
-  notes: string;
-  reviewDate: string;
-  contactDetails: string;
-  stitchflowConnection: StitchflowConnection;
-  primaryAppOwner: string;
-  secondaryAppOwner: string;
-  accessReviewCycle: AccessReviewCycle;
-  securityTier: SecurityTier;
+  notes: string | undefined;
+  reviewDate: string | undefined;
+  contactDetails: string | undefined;
+  stitchflowConnection: StitchflowConnection | undefined;
+  primaryAppOwner: string | undefined;
+  secondaryAppOwner: string | undefined;
+  accessReviewCycle: AccessReviewCycle | undefined;
+  securityTier: SecurityTier | undefined;
 }
 
 export interface SelectedApp extends App {

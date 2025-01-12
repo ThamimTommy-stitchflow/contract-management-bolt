@@ -7,6 +7,7 @@ import { SelectedApps } from '../Apps/SelectedApps';
 import { AppListInput } from './AppListInput';
 import { CATEGORIES } from '../../constants/categories';
 import { App, SelectedApp, ContractDetails } from '../../types/app';
+import { ContractRecord } from '../../types/contracts';
 import { filterAppsBySearch } from '../../utils/filterApps';
 import { appService } from '../../services/apps';
 import { useCompany } from '../../context/CompanyContext';
@@ -20,6 +21,8 @@ interface AppSelectionModalProps {
   onBulkSelect: (apps: App[]) => void;
   selectedApps: SelectedApp[];
   availableApps: App[];
+  editingAppId?: string | null;
+  currentContract?: ContractRecord;
 }
 
 export function AppSelectionModal({ 
@@ -74,10 +77,14 @@ export function AppSelectionModal({
           onUpdateDetails(appId, details)
         )
       );
+      
+      // Force a refresh of the contract view by triggering the useEffect in AppManagement
+      const event = new Event('contract-updated');
+      window.dispatchEvent(event);
+      console.log('contract-updated event dispatched');
       onClose();
     } catch (error) {
       console.error('Error saving changes:', error);
-      // You might want to show an error message to the user here
     } finally {
       setIsSaving(false);
     }

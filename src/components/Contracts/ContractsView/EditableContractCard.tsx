@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pencil, Save, Trash2} from 'lucide-react';
 import { ContractCard } from './ContractCard';
 import { ContractDetailsForm } from '../../Apps/ContractDetailsForm';
@@ -21,8 +21,9 @@ export function EditableContractCard({
   const [isEditing, setIsEditing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Initialize localDetails with contract data
   const [localDetails, setLocalDetails] = useState<ContractDetails>(() => ({
-    ...createDefaultContractDetails(),
     services: contract.services.map(s => ({
       id: s.id,
       name: s.name,
@@ -32,18 +33,46 @@ export function EditableContractCard({
       numberOfLicenses: s.number_of_licenses?.toString() || '',
       totalCost: s.total_cost?.toString() || ''
     })),
-    overallTotalValue: contract.overallTotalValue?.toString() || '',
-    renewalDate: contract.renewalDate || '',
-    reviewDate: contract.reviewDate || '',
-    notes: contract.notes || '',
-    contactDetails: contract.contactDetails || '',
+    overallTotalValue: contract.overallTotalValue?.toString(),
+    renewalDate: contract.renewalDate || undefined,
+    reviewDate: contract.reviewDate || undefined,
+    notes: contract.notes || undefined,
+    contactDetails: contract.contactDetails || undefined,
     stitchflowConnection: contract.stitchflowConnection as StitchflowConnection,
-    primaryAppOwner: contract.primaryAppOwner || '',
-    secondaryAppOwner: contract.secondaryAppOwner || '',
+    primaryAppOwner: contract.primaryAppOwner || undefined,
+    secondaryAppOwner: contract.secondaryAppOwner || undefined,
     accessReviewCycle: contract.accessReviewCycle as AccessReviewCycle,
     securityTier: contract.securityTier as SecurityTier,
-    contractFileUrl: contract.contractFileUrl
+    contractFileUrl: contract.contractFileUrl || undefined
   }));
+
+  // Update localDetails when contract changes
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalDetails({
+        services: contract.services.map(s => ({
+          id: s.id,
+          name: s.name,
+          licenseType: s.license_type as LicenseType,
+          pricingModel: s.pricing_model as PricingModel,
+          costPerUser: s.cost_per_user?.toString() || '',
+          numberOfLicenses: s.number_of_licenses?.toString() || '',
+          totalCost: s.total_cost?.toString() || ''
+        })),
+        overallTotalValue: contract.overallTotalValue?.toString(),
+        renewalDate: contract.renewalDate || undefined,
+        reviewDate: contract.reviewDate || undefined,
+        notes: contract.notes || undefined,
+        contactDetails: contract.contactDetails || undefined,
+        stitchflowConnection: contract.stitchflowConnection as StitchflowConnection,
+        primaryAppOwner: contract.primaryAppOwner || undefined,
+        secondaryAppOwner: contract.secondaryAppOwner || undefined,
+        accessReviewCycle: contract.accessReviewCycle as AccessReviewCycle,
+        securityTier: contract.securityTier as SecurityTier,
+        contractFileUrl: contract.contractFileUrl || undefined
+      });
+    }
+  }, [contract, isEditing]);
 
   const handleSave = async (details: ContractDetails): Promise<void> => {
     try {
@@ -53,7 +82,6 @@ export function EditableContractCard({
       setIsExpanded(false);
     } catch (error) {
       console.error('Failed to save contract:', error);
-      // You might want to show an error toast/notification here
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +133,7 @@ export function EditableContractCard({
                   ? 'bg-blue-50 text-blue-600' 
                   : 'text-gray-400 hover:text-blue-600'
               } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={isEditing ? "Save changes" : "Edit contract"}
+              title={isEditing ? "Edit contract" : "Edit contract"}
             >
               {isSaving ? (
                 <div className="animate-spin h-4 w-4">
@@ -114,8 +142,6 @@ export function EditableContractCard({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 </div>
-              ) : isEditing ? (
-                <Save className="h-4 w-4" />
               ) : (
                 <Pencil className="h-4 w-4" />
               )}
@@ -149,6 +175,7 @@ export function EditableContractCard({
             appId={contract.appId}
             onSubmit={handleSave}
             disabled={isSaving}
+            isSaving={isSaving}
           />
         </div>
       ) : (

@@ -115,27 +115,27 @@ async def upload_app_list(
     try:
         # Split and clean the app names
         app_names = [name.strip() for name in app_list.split(',') if name.strip()]
-        
-        # Remove duplicates while preserving order
         app_names = list(dict.fromkeys(app_names))
         
         if not app_names:
             raise HTTPException(status_code=400, detail="No valid app names provided")
         
         results = []
+        # Step 1: Get existing company apps for checking
         existing_company_apps = await service.get_company_apps(company_id)
-        existing_app_names = {app.name.lower() for app in existing_company_apps}
+        existing_company_app_names = {app.name.lower() for app in existing_company_apps}
+        
+        # Step 2: Get all apps from the database for case-insensitive lookup
+        all_apps = await service.get_all_apps()
+        all_app_names = {app.name.lower(): app for app in all_apps}
         
         for app_name in app_names:
-            # Skip if app is already associated with company
-            if app_name.lower() in existing_app_names:
+            if app_name.lower() in existing_company_app_names:
                 continue
-                
-            # Check if app exists
-            existing_app = await service.get_app_by_name(app_name)
+            
+            existing_app = all_app_names.get(app_name.lower())
             
             if not existing_app:
-                # Create new app
                 new_app = AppCreate(
                     name=app_name,
                     category="CSV Uploads",
@@ -145,10 +145,10 @@ async def upload_app_list(
                 app = await service.create_app(new_app)
             else:
                 app = existing_app
-                
-            # Associate app with company
+            
+            # Associate app with company and create default contract and service
             company_app = CompanyAppCreate(company_id=company_id, app_id=app.id)
-            await service.select_app(company_app)
+            await service.select_app_with_defaults(company_app)  # New method to handle all creation
             results.append(app)
             
         return {
@@ -156,5 +156,17 @@ async def upload_app_list(
             "apps": results
         }
             
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/company/{company_id}/with-contracts", response_model=List[AppResponse])
+async def get_company_apps_with_contracts(
+    company_id: str,
+    db: Client = Depends(get_db)
+):
+    """Get all apps selected by a company"""
+    service = AppService(db)
+    try:
+        return await service.get_company_apps_with_contracts(company_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

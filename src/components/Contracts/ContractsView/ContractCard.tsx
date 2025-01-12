@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Download, ExternalLink } from 'lucide-react';
 import { ServiceTable } from './ServiceTable';
 import { GroupedContract } from '../../../utils/contractGrouping';
 import { differenceInDays, differenceInMonths, parseISO, isPast } from 'date-fns';
@@ -61,6 +61,43 @@ export function ContractCard({
     return null;
   };
 
+  const renderContractUrl = () => {
+    if (!contract.contractFileUrl || contract.contractFileUrl === 'Not Provided') {
+      return (
+        <div className="flex items-center text-gray-500">
+          <span className="text-sm">No contract file available</span>
+        </div>
+      );
+    }
+
+    const isSupabaseUrl = contract.contractFileUrl.includes('supabase.co/storage');
+
+    return (
+      <div className="flex items-center space-x-2">
+        <span className="text-sm text-gray-500">Contract File:</span>
+        {isSupabaseUrl ? (
+          <button 
+            onClick={() => window.open(contract.contractFileUrl, '_blank')}
+            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            Download Contract
+            <Download className="h-4 w-4 ml-1" />
+          </button>
+        ) : (
+          <a 
+            href={contract.contractFileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            View Contract
+            <ExternalLink className="h-4 w-4 ml-1" />
+          </a>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="px-4 py-2.5">
       {/* Rest of the component remains the same */}
@@ -75,9 +112,9 @@ export function ContractCard({
             <span className="text-xs text-gray-500 mr-1">Review:</span>
             <span className="text-sm text-gray-900">{contract.reviewDate || '-'}</span>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500">Access Review Cycle</label>
-            <p className="mt-0.5 text-sm text-gray-900">{contract.accessReviewCycle}</p>
+          <div className="flex items-center">
+            <span className="text-xs text-gray-500 mr-1">Access Review Cycle:</span>
+            <span className="text-sm text-gray-900">{contract.accessReviewCycle}</span>
           </div>
         </div>
 
@@ -114,6 +151,13 @@ export function ContractCard({
       {/* Expanded View */}
       {isExpanded && (
         <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
+          <div className="flex items-center space-x-4">
+            <div>
+              <span className="text-xs text-gray-500 mr-1">Contract:</span>
+              {renderContractUrl()}
+            </div>
+          </div>
+
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">App Owners</h4>
             <div className="grid grid-cols-2 gap-4">

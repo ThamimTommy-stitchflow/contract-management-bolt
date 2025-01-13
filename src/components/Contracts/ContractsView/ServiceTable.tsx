@@ -26,7 +26,7 @@ export function ServiceTable({ services }: ServiceTableProps) {
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">License Type</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pricing Model</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost/User</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Licenses</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seats</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cost</th>
             </tr>
           </thead>

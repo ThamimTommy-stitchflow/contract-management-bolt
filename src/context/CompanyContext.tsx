@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Company } from '../types/company';
+import { Company, MinimalCompany } from '../types/company';
 import { companyService } from '../services/company';
 
 interface CompanyContextType {
-  company: Company | null;
+  company: MinimalCompany | null;
   authenticate: (name: string, accessCode: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -12,7 +12,7 @@ interface CompanyContextType {
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
-  const [company, setCompany] = useState<Company | null>(() => {
+  const [company, setCompany] = useState<MinimalCompany | null>(() => {
     const stored = localStorage.getItem('company');
     return stored ? JSON.parse(stored) : null;
   });
@@ -21,8 +21,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     try {
       const authenticatedCompany = await companyService.getCompany(name, accessCode);
       if (authenticatedCompany) {
-        setCompany(authenticatedCompany);
-        localStorage.setItem('company', JSON.stringify(authenticatedCompany));
+        const minimalCompany: MinimalCompany = {
+          id: authenticatedCompany.id,
+          name: authenticatedCompany.name
+        };
+        setCompany(minimalCompany);
+        localStorage.setItem('company', JSON.stringify(minimalCompany));
       } else {
         throw new Error('Authentication failed');
       }

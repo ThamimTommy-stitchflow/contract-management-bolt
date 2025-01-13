@@ -21,7 +21,7 @@ export function ContractHeader({ totalValue, sortValue, onSortChange }: Contract
           <DollarSign className="h-5 w-5 text-blue-600" />
         </div>
         <div>
-          <div className="text-sm font-medium text-gray-600">Total Contract Value</div>
+          <div className="text-sm font-medium text-gray-600">Annual SaaS cost</div>
           <div className="text-lg font-semibold text-gray-900">
             ${formattedValue}
           </div>

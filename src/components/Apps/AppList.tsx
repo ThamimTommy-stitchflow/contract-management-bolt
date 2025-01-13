@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppCard } from './AppCard';
 import { App } from '../../types/app';
 
@@ -10,9 +10,19 @@ interface AppListProps {
 }
 
 export function AppList({ apps, category, onSelectApp, selectedApps }: AppListProps) {
+  const [loadingApps, setLoadingApps] = useState<Record<string, boolean>>({});
   const categoryApps = apps.filter(app => app.category === category);
 
   if (categoryApps.length === 0) return null;
+
+  const handleSelectApp = async (app: App) => {
+    try {
+      setLoadingApps(prev => ({ ...prev, [app.id]: true }));
+      await onSelectApp(app);
+    } finally {
+      setLoadingApps(prev => ({ ...prev, [app.id]: false }));
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -24,8 +34,9 @@ export function AppList({ apps, category, onSelectApp, selectedApps }: AppListPr
           <AppCard 
             key={app.id} 
             app={app} 
-            onSelect={onSelectApp}
+            onSelect={handleSelectApp}
             isSelected={selectedApps.some(selectedApp => selectedApp.id === app.id)}
+            isLoading={loadingApps[app.id]}
           />
         ))}
       </div>

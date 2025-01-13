@@ -294,7 +294,7 @@ async def process_contract_file(
             
             # Update contract with file information
             update_data = {
-                "contract_file_url": file_url,
+                "contract_file_url": storage_service.get_download_url(file_path),
             }
             
             updated_contract = await contract_service.update_contract(

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Clock, Download, ExternalLink } from 'lucide-re
 import { ServiceTable } from './ServiceTable';
 import { GroupedContract } from '../../../utils/contractGrouping';
 import { differenceInDays, differenceInMonths, parseISO, isPast } from 'date-fns';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface ContractCardProps {
   contract: GroupedContract;
@@ -61,6 +62,50 @@ export function ContractCard({
     return null;
   };
 
+  const handleDownload = async (url: string) => {
+    console.log('in handleDownload url', url);
+    try {
+      // Extract the correct path from the URL
+      // Example URL: https://bmurfqhjknxintdjuidz.supabase.co/storage/v1/object/public/contract-files/https://bmurfqhjknxintdjuidz.supabase.co/storage/v1/object/public/contract-files/70ffe7f1...
+      const pathMatch = url.match(/public\/contract-files\/(.+?)(?:https:|$)/);
+      if (!pathMatch) {
+        console.error('Could not extract path from URL');
+        return;
+      }
+      const path = decodeURIComponent(pathMatch[1].replace(/\/$/, ''));
+      console.log('Extracted path:', path);
+
+      const { data, error } = await supabase.storage
+        .from('contract-files')
+        .download(path);
+
+      if (error) {
+        console.error('Supabase download error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('No data received from Supabase');
+      }
+
+      // Create download link
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      // Use the original filename from the path
+      const fileName = 'contract.pdf';
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      // Cleanup
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   const renderContractUrl = () => {
     if (!contract.contractFileUrl || contract.contractFileUrl === 'Not Provided') {
       return (
@@ -77,7 +122,7 @@ export function ContractCard({
         <span className="text-sm text-gray-500">Contract File:</span>
         {isSupabaseUrl ? (
           <button 
-            onClick={() => window.open(contract.contractFileUrl, '_blank')}
+            onClick={() => handleDownload(contract.contractFileUrl)}
             className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
           >
             Download Contract
@@ -126,7 +171,7 @@ export function ContractCard({
             </span>
           </div>
           <div>
-            <span className="text-xs text-gray-500 mr-1">Licenses:</span>
+            <span className="text-xs text-gray-500 mr-1">No.seats:</span>
             <span className="text-sm text-gray-900">{totalLicenses}</span>
           </div>
           <button

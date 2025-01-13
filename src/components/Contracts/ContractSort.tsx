@@ -23,11 +23,11 @@ export function ContractSort({ value, onChange }: ContractSortProps) {
           onChange={(e) => onChange(e.target.value as SortOption)}
           className="text-sm bg-transparent border-0 focus:ring-0 text-gray-600 font-medium appearance-none cursor-pointer pr-8"
         >
-          <option value="renewal-priority">Sort by Renewal Priority</option>
+          <option value="renewal-priority">Sort by Renewal date (upcoming first)</option>
           <option value="name-asc">Sort A-Z</option>
           <option value="name-desc">Sort Z-A</option>
           <option value="review-date">Sort by Access Review</option>
-          <option value="total-value">Sort by Contract Value</option>
+          <option value="total-value">Sort by App contract value</option>
         </select>
         <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
           <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -88,6 +88,7 @@ class StorageService:
     async def download_contract_file(self, file_path: str) -> Optional[bytes]:
         """Download a contract file by its path"""
         try:
+            # Use the storage download method which will handle the proper endpoint call
             response = self.db.storage \
                 .from_(self.bucket_name) \
                 .download(file_path)
@@ -104,6 +105,20 @@ class StorageService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to download file: {str(e)}"
+            )
+
+    def get_download_url(self, file_path: str) -> str:
+        """Get the download URL for a file that will work with Supabase's download endpoint"""
+        try:
+            # This will return a URL that goes through Supabase's download endpoint
+            return self.db.storage \
+                .from_(self.bucket_name) \
+                .get_public_url(file_path, download=True)  # Using download parameter
+        except Exception as e:
+            print(f"Error getting download URL: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get download URL: {str(e)}"
             )
 
     async def delete_contract_file(self, file_path: str) -> bool:

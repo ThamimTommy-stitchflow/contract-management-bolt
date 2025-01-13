@@ -10,3 +10,8 @@ export interface CompanyAuth {
   name: string;
   access_code: string;
 }
+
+export interface MinimalCompany {
+  id: string;
+  name: string;
+}

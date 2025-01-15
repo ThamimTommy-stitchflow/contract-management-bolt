@@ -3,7 +3,7 @@ import { ChevronDown, ChevronUp, Clock, Download, ExternalLink, ChevronRight } f
 import { ServiceTable } from './ServiceTable';
 import { GroupedContract } from '../../../utils/contractGrouping';
 import { differenceInDays, differenceInMonths, parseISO, isPast } from 'date-fns';
-import { supabase } from '../../../lib/supabaseClient';
+// import { supabase } from '../../../lib/supabaseClient';
 import { formatToUSDate } from '../../../utils/dateUtils';
 
 interface ContractCardProps {

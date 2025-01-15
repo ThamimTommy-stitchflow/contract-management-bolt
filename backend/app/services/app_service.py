@@ -171,6 +171,7 @@ class AppService:
             contract_data = ContractBase(
                 company_id=app_selection.company_id,
                 app_id=app_selection.app_id,
+                plan_name=None,
                 renewal_date=None,
                 review_date=None,
                 overall_total_value=None,

@@ -33,6 +33,8 @@ class ContractService:
                 
                 contract['services'] = services_response.data
                 result.append(ContractResponse(**contract))
+
+            print("Result:", result)
             
             return result
         except Exception as e:

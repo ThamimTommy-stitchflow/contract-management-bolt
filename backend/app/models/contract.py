@@ -50,6 +50,7 @@ class ServiceBase(BaseModel):
 class ContractBase(BaseModel):
     company_id: str
     app_id: str 
+    plan_name: Optional[str] = None
     renewal_date: Optional[date] = None
     review_date: Optional[date] = None
     overall_total_value: Optional[float] = Field(None, ge=0)
@@ -102,6 +103,7 @@ class ContractCreate(ContractBase):
 
 class ContractUpdate(BaseModel):
     contract_file_url: Optional[str] = None
+    plan_name: Optional[str] = None
     renewal_date: Optional[date] = None
     review_date: Optional[date] = None
     notes: Optional[str] = None

@@ -1,9 +1,10 @@
-import React from 'react';
-import { ChevronDown, ChevronUp, Clock, Download, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp, Clock, Download, ExternalLink, ChevronRight } from 'lucide-react';
 import { ServiceTable } from './ServiceTable';
 import { GroupedContract } from '../../../utils/contractGrouping';
 import { differenceInDays, differenceInMonths, parseISO, isPast } from 'date-fns';
 import { supabase } from '../../../lib/supabaseClient';
+import { formatToUSDate } from '../../../utils/dateUtils';
 
 interface ContractCardProps {
   contract: GroupedContract;
@@ -16,64 +17,69 @@ export function ContractCard({
   isExpanded,
   onToggleExpand
 }: ContractCardProps) {
-  console.log('in ContractCard contract', contract);
+  const [isServicesExpanded, setIsServicesExpanded] = useState(false);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  
   const totalLicenses = contract.services.reduce((sum, service) => 
-    sum + (parseInt(service.number_of_licenses) || 0), 0);
+    sum + (service.number_of_licenses ? parseInt(service.number_of_licenses.toString()) : 0), 0);
 
   const getRenewalBadge = () => {
-    if (!contract.renewalDate) return null;
+    if (!contract.renewalDate || contract.renewalDate === 'N/A') return null;
     
-    const renewalDate = parseISO(contract.renewalDate);
-    const today = new Date();
-    const isPastDue = isPast(renewalDate);
-    
-    if (isPastDue) {
-      const daysOverdue = Math.abs(differenceInDays(renewalDate, today));
-      const monthsOverdue = Math.abs(differenceInMonths(renewalDate, today));
+    try {
+      const renewalDate = parseISO(contract.renewalDate);
+      if (isNaN(renewalDate.getTime())) return null;
       
-      return (
-        <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-          <Clock className="h-3 w-3 mr-0.5" />
-          Due {monthsOverdue >= 1 ? `${monthsOverdue}m` : `${daysOverdue}d`} ago
-        </span>
-      );
+      const today = new Date();
+      const isPastDue = isPast(renewalDate);
+      
+      if (isPastDue) {
+        const daysOverdue = Math.abs(differenceInDays(renewalDate, today));
+        const monthsOverdue = Math.abs(differenceInMonths(renewalDate, today));
+        
+        return (
+          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+            <Clock className="h-3 w-3 mr-0.5" />
+            Due {monthsOverdue >= 1 ? `${monthsOverdue}m` : `${daysOverdue}d`} ago
+          </span>
+        );
+      }
+      
+      const daysUntilRenewal = differenceInDays(renewalDate, today);
+      
+      if (daysUntilRenewal < 30) {
+        return (
+          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+            <Clock className="h-3 w-3 mr-0.5" />
+            {daysUntilRenewal}d
+          </span>
+        );
+      }
+      
+      if (daysUntilRenewal < 180) {
+        return (
+          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+            <Clock className="h-3 w-3 mr-0.5" />
+            {daysUntilRenewal}d
+          </span>
+        );
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error parsing renewal date:', error);
+      return null;
     }
-    
-    const daysUntilRenewal = differenceInDays(renewalDate, today);
-    
-    if (daysUntilRenewal < 30) {
-      return (
-        <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-          <Clock className="h-3 w-3 mr-0.5" />
-          {daysUntilRenewal}d
-        </span>
-      );
-    }
-    
-    if (daysUntilRenewal < 180) {
-      return (
-        <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-          <Clock className="h-3 w-3 mr-0.5" />
-          {daysUntilRenewal}d
-        </span>
-      );
-    }
-    
-    return null;
   };
 
   const handleDownload = async (url: string) => {
-    console.log('in handleDownload url', url);
     try {
-      // Extract the correct path from the URL
-      // Example URL: https://bmurfqhjknxintdjuidz.supabase.co/storage/v1/object/public/contract-files/https://bmurfqhjknxintdjuidz.supabase.co/storage/v1/object/public/contract-files/70ffe7f1...
       const pathMatch = url.match(/public\/contract-files\/(.+?)(?:https:|$)/);
       if (!pathMatch) {
         console.error('Could not extract path from URL');
         return;
       }
       const path = decodeURIComponent(pathMatch[1].replace(/\/$/, ''));
-      console.log('Extracted path:', path);
 
       const { data, error } = await supabase.storage
         .from('contract-files')
@@ -88,17 +94,14 @@ export function ContractCard({
         throw new Error('No data received from Supabase');
       }
 
-      // Create download link
       const blob = new Blob([data], { type: 'application/pdf' });
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      // Use the original filename from the path
       const fileName = 'contract.pdf';
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
-      // Cleanup
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
@@ -119,10 +122,10 @@ export function ContractCard({
 
     return (
       <div className="flex items-center space-x-2">
-        <span className="text-sm text-gray-500">Contract File:</span>
+        <span className="text-sm text-gray-500"></span>
         {isSupabaseUrl ? (
           <button 
-            onClick={() => handleDownload(contract.contractFileUrl)}
+            onClick={() => handleDownload(contract.contractFileUrl || '')}
             className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
           >
             Download Contract
@@ -145,94 +148,136 @@ export function ContractCard({
 
   return (
     <div className="px-4 py-2.5">
-      {/* Rest of the component remains the same */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-6">
           <div>
             <span className="text-xs text-gray-500 mr-1">Renewal:</span>
-            <span className="text-sm text-gray-900">{contract.renewalDate || '-'}</span>
+            <span className="text-sm text-gray-900">
+              {contract.services[0]?.license_type === 'Monthly' ? 'N/A' :
+                (contract.renewalDate && contract.renewalDate !== 'N/A' 
+                  ? formatToUSDate(contract.renewalDate) 
+                  : 'N/A')}
+            </span>
             {getRenewalBadge()}
           </div>
           <div>
-            <span className="text-xs text-gray-500 mr-1">Review:</span>
-            <span className="text-sm text-gray-900">{contract.reviewDate || '-'}</span>
+            <span className="text-xs text-gray-500 mr-1">Owner:</span>
+            <span className="text-sm text-gray-900">{contract.primaryAppOwner || '-'}</span>
           </div>
-          <div className="flex items-center">
-            <span className="text-xs text-gray-500 mr-1">Access Review Cycle:</span>
-            <span className="text-sm text-gray-900">{contract.accessReviewCycle}</span>
+          <div>
+            <span className="text-xs text-gray-500 mr-1">License Type:</span>
+            <span className="text-sm text-gray-900">{contract.services[0]?.license_type || '-'}</span>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500 mr-1">Cost per seat:</span>
+            <span className="text-sm text-gray-900">
+              {contract.services.some(s => s.cost_per_user) ? 
+                `$${contract.services.reduce((sum, service) => 
+                  sum + (Number(service.cost_per_user) || 0), 0)}`
+                : 'N/A'}
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center space-x-6">
-          <div>
-            <span className="text-xs text-gray-500 mr-1">Value:</span>
-            <span className="text-sm font-medium text-gray-900">
-              ${contract.overallTotalValue || '0.00'}
-            </span>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500 mr-1">No.seats:</span>
-            <span className="text-sm text-gray-900">{totalLicenses}</span>
-          </div>
-          <button
-            onClick={onToggleExpand}
-            className="flex items-center text-xs text-gray-500 hover:text-gray-700 ml-2"
-          >
-            {isExpanded ? (
-              <>
-                <span className="mr-1">Less</span>
-                <ChevronUp className="h-3 w-3" />
-              </>
-            ) : (
-              <>
-                <span className="mr-1">More</span>
-                <ChevronDown className="h-3 w-3" />
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={onToggleExpand}
+          className="flex items-center text-xs text-gray-500 hover:text-gray-700 ml-2"
+        >
+          {isExpanded ? (
+            <>
+              <span className="mr-1">Less</span>
+              <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              <span className="mr-1">Show More</span>
+              <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </button>
       </div>
 
       {/* Expanded View */}
       {isExpanded && (
         <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
-          <div className="flex items-center space-x-4">
+          {/* Additional Details Grid */}
+          <div className="px-4 grid grid-cols-4 gap-6">
             <div>
-              <span className="text-xs text-gray-500 mr-1">Contract:</span>
+              <span className="text-xs text-gray-500 block">Security Tier</span>
+              <span className="text-sm text-gray-900">{contract.securityTier || '-'}</span>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">No. of Seats</span>
+              <span className="text-sm text-gray-900">{totalLicenses}</span>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">Value</span>
+              <span className="text-sm font-medium text-gray-900">
+                ${contract.overallTotalValue || '0.00'}
+              </span>
+            </div>
+            <div>
+              <span className="text-xs text-gray-500 block">Review Cycle</span>
+              <span className="text-sm text-gray-900">{contract.accessReviewCycle || '-'}</span>
+            </div>
+          </div>
+
+          {/* Secondary Owner */}
+          <div className="px-4">
+            <span className="text-xs text-gray-500 block">Secondary Owner</span>
+            <span className="text-sm text-gray-900">{contract.secondaryAppOwner || '-'}</span>
+          </div>
+
+          {/* Contract File Section */}
+          <div className="px-4">
+            <div className="flex items-center space-x-4">
+              <span className="text-xs text-gray-500 mr-1">Contract details:</span>
               {renderContractUrl()}
             </div>
           </div>
 
-          <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">App Owners</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-gray-500">Primary Owner</label>
-                <p className="mt-0.5 text-sm text-gray-900">{contract.primaryAppOwner}</p>
+          {/* Services Section */}
+          <div className="px-4">
+            <button 
+              onClick={() => setIsServicesExpanded(!isServicesExpanded)}
+              className="flex items-center text-sm font-medium text-gray-900 hover:text-gray-600"
+            >
+              <ChevronRight className={`h-4 w-4 mr-1 transform transition-transform ${isServicesExpanded ? 'rotate-90' : ''}`} />
+              Plan Details
+            </button>
+            {isServicesExpanded && (
+              <div className="mt-2">
+                <ServiceTable services={contract.services} />
               </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500">Secondary Owner</label>
-                <p className="mt-0.5 text-sm text-gray-900">{contract.secondaryAppOwner}</p>
-              </div>
-            </div>
+            )}
           </div>
 
-          <ServiceTable services={contract.services} />
-
+          {/* Notes and Contact Details Section */}
           {(contract.notes || contract.contactDetails) && (
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              {contract.notes && (
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Notes</label>
-                  <p className="mt-0.5 text-sm text-gray-900 whitespace-pre-wrap">{contract.notes}</p>
-                </div>
-              )}
-              {contract.contactDetails && (
-                <div>
-                  <label className="text-xs font-medium text-gray-500">Contact Details</label>
-                  <p className="mt-0.5 text-sm text-gray-900 whitespace-pre-wrap">
-                    {contract.contactDetails}
-                  </p>
+            <div className="px-4">
+              <button 
+                onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                className="flex items-center text-sm font-medium text-gray-900 hover:text-gray-600"
+              >
+                <ChevronRight className={`h-4 w-4 mr-1 transform transition-transform ${isDetailsExpanded ? 'rotate-90' : ''}`} />
+                Additional Details
+              </button>
+              {isDetailsExpanded && (
+                <div className="mt-2 grid grid-cols-2 gap-4">
+                  {contract.notes && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500">Notes</label>
+                      <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{contract.notes}</p>
+                    </div>
+                  )}
+                  {contract.contactDetails && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500">Contact Details</label>
+                      <p className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">
+                        {contract.contactDetails}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

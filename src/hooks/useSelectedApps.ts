@@ -4,7 +4,7 @@ import { appService } from '../services/apps';
 import { contractService } from '../services/contracts';
 import { createDefaultService, createDefaultContractDetails } from '../utils/serviceUtils';
 import { useCompany } from '../context/CompanyContext';
-import { AccessReviewCycle, SecurityTier, StitchflowConnection } from '../types/contracts';
+import { AccessReviewCycle, SecurityTier, StitchflowConnection, ContractRecord, ServiceRecord } from '../types/contracts';
 
 interface ContractService {
   id: string;
@@ -31,6 +31,7 @@ interface Contract {
   secondary_app_owner: string | null;
   access_review_cycle: string | null;
   security_tier: string | null;
+  plan_name: string | null;
 }
 
 export function useSelectedApps() {
@@ -75,7 +76,8 @@ export function useSelectedApps() {
               primaryAppOwner: contract.primary_app_owner,
               secondaryAppOwner: contract.secondary_app_owner,
               accessReviewCycle: contract.access_review_cycle,
-              securityTier: contract.security_tier
+              securityTier: contract.security_tier,
+              planName: contract.plan_name || ''
             } : createDefaultContractDetails()
           };
         });
@@ -157,7 +159,7 @@ export function useSelectedApps() {
       
       // Fetch all contracts to ensure we have the latest data
       const contracts = await contractService.getCompanyContracts(company.id);
-      const updatedContract = contracts.find(c => c.app_id === appId);
+      const updatedContract = contracts.find((c: ContractRecord) => c.app_id === appId);
       
       if (updatedContract) {
         // Update local state with the fresh data
@@ -166,7 +168,7 @@ export function useSelectedApps() {
             ? { 
                 ...app, 
                 contractDetails: {
-                  services: updatedContract.services.map(s => ({
+                  services: updatedContract.services.map((s: ServiceRecord) => ({
                     id: s.id,
                     name: s.name,
                     licenseType: s.license_type,
@@ -185,7 +187,8 @@ export function useSelectedApps() {
                   primaryAppOwner: updatedContract.primary_app_owner || '',
                   secondaryAppOwner: updatedContract.secondary_app_owner || '',
                   accessReviewCycle: updatedContract.access_review_cycle as AccessReviewCycle,
-                  securityTier: updatedContract.security_tier as SecurityTier
+                  securityTier: updatedContract.security_tier as SecurityTier,
+                  planName: updatedContract.plan_name || ''
                 }
               }
             : app

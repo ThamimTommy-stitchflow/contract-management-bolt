@@ -9,6 +9,7 @@ import { EditableContractCard } from './EditableContractCard';
 import { DeleteConfirmationModal } from '../../Modals/DeleteConfirmationModal';
 import type { SortOption } from '../ContractSort';
 import { useAppDetails } from '../../../hooks/useAppDetails';
+import { formatToUSDate } from '../../../utils/dateUtils';
 
 interface ContractsViewProps {
   contracts: ContractRecord[];
@@ -58,6 +59,7 @@ export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: 
         secondaryAppOwner: contract.secondary_app_owner || 'Not Provided',
         securityTier: contract.security_tier,
         stitchflowConnection: contract.stitchflow_connection,
+        planName: contract.plan_name,
         services: contract.services.map(service => ({
           ...service,
           id: service.id,
@@ -75,22 +77,26 @@ export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: 
     });
   }, [localContracts, appDetailsMap]);
 
+
+  console.log('in ContractsView enrichedContracts', enrichedContracts);
   const groupedContracts = useMemo(() => 
     groupContractsByApp(enrichedContracts), 
     [enrichedContracts]
   );
 
+  console.log("Grouped Contracts", groupedContracts)
+
   const sortedContracts = useMemo(() => 
     sortContracts(groupedContracts, sortBy), 
     [groupedContracts, sortBy]
   );
-
+  console.log('in ContractsView sortedContracts', sortedContracts);
   const totalContractValue = useMemo(() => 
     calculateTotalContractValue(groupedContracts), 
     [groupedContracts]
   );
 
-  console.log('in ContractsView sortedContracts', sortedContracts);
+  
   // Handle contract update
   const handleContractUpdate = async (appId: string, details: Partial<ContractDetails>) => {
     try {
@@ -124,7 +130,8 @@ export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: 
               secondaryAppOwner: details.secondaryAppOwner || contract.secondaryAppOwner,
               accessReviewCycle: details.accessReviewCycle || contract.accessReviewCycle,
               securityTier: details.securityTier || contract.securityTier,
-              services: updatedServices || contract.services
+              services: updatedServices || contract.services,
+              planName: details.planName || contract.planName
             };
           }
           return contract;

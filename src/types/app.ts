@@ -22,6 +22,7 @@ export interface App {
 
 export interface ContractDetails {
   services: ServiceDetails[];
+  planName: string | undefined;
   overallTotalValue: string | undefined;
   renewalDate: string | undefined;
   contractFileUrl?: string;

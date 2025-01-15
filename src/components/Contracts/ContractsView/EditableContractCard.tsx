@@ -6,6 +6,7 @@ import { GroupedContract } from '../../../utils/contractGrouping';
 import { ContractDetails, ServiceDetails } from '../../../types/app';
 import { createDefaultContractDetails } from '../../../utils/serviceUtils';
 import { LicenseType, PricingModel, StitchflowConnection, AccessReviewCycle, SecurityTier } from '../../../types/contracts';
+import { formatToUSDate } from '../../../utils/dateUtils';
 
 interface EditableContractCardProps {
   contract: GroupedContract;
@@ -43,7 +44,8 @@ export function EditableContractCard({
     secondaryAppOwner: contract.secondaryAppOwner || undefined,
     accessReviewCycle: contract.accessReviewCycle as AccessReviewCycle,
     securityTier: contract.securityTier as SecurityTier,
-    contractFileUrl: contract.contractFileUrl || undefined
+    contractFileUrl: contract.contractFileUrl || undefined,
+    planName: contract.planName || undefined
   }));
 
   // Update localDetails when contract changes
@@ -69,7 +71,8 @@ export function EditableContractCard({
         secondaryAppOwner: contract.secondaryAppOwner || undefined,
         accessReviewCycle: contract.accessReviewCycle as AccessReviewCycle,
         securityTier: contract.securityTier as SecurityTier,
-        contractFileUrl: contract.contractFileUrl || undefined
+        contractFileUrl: contract.contractFileUrl || undefined,
+        planName: contract.planName || undefined
       });
     }
   }, [contract, isEditing]);
@@ -104,27 +107,36 @@ export function EditableContractCard({
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-6">
             <div>
               <h3 className="text-base font-medium text-gray-900">{contract.appName}</h3>
-              <p className="text-xs text-gray-500">{contract.category}</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                contract.stitchflowConnection === 'API Supported'
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {contract.stitchflowConnection === 'API Supported' ? 'API' : 'CSV'}
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-gray-50/70 text-gray-600">
+                  <span>
+                    Plan: {contract.planName || 'N/A'}
+                  </span>
               </span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                {contract.securityTier}
+              <span className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-medium ${
+                contract.stitchflowConnection === 'API Supported'
+                  ? 'bg-green-50/70 text-green-700'
+                  : contract.stitchflowConnection === 'CSV Upload/API coming soon'
+                    ? 'bg-amber-50/70 text-amber-700' 
+                    : 'bg-gray-50/70 text-gray-600'
+              }`}>
+                Stitchflow Connection: {
+                  contract.stitchflowConnection === 'API Supported' 
+                    ? 'API'
+                    : contract.stitchflowConnection === 'CSV Upload/API coming soon'
+                      ? 'CSV'
+                      : 'Not Connected'
+                }
               </span>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <button
               onClick={handleEditToggle}
               disabled={isSaving}

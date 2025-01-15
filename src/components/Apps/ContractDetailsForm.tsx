@@ -1,13 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { ContractDetails, ServiceDetails } from '../../types/app';
-import { appService } from '../../services/apps';
 import { FormInput, FormLabel, FormSelect, FormTextArea } from './FormElements';
 import { ServiceGroup } from './ServiceGroup';
 import { createDefaultService } from '../../utils/serviceUtils';
 import { calculateOverallTotalValue } from '../../utils/costCalculator';
-import { calculateReviewDate } from '../../utils/dateUtils';
 import { ACCESS_REVIEW_CYCLES, SECURITY_TIERS } from '../../types/contracts';
+
+const STITCHFLOW_CONNECTION_OPTIONS = [
+  { value: 'API Supported', label: 'API' },
+  { value: 'CSV Upload/API coming soon', label: 'CSV' },
+  { value: 'Not Connected', label: 'Not Connected' }
+];
+
+// Helper functions for date formatting
+const formatToUSDate = (isoDate: string): string => {
+  if (!isoDate || isoDate === 'N/A') return isoDate;
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric'
+  });
+};
+
+const parseUSDate = (usDate: string): string => {
+  if (!usDate || usDate === 'N/A') return usDate;
+  const [month, day, year] = usDate.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
 
 interface ContractDetailsFormProps {
   details: Partial<ContractDetails>;
@@ -34,7 +56,6 @@ export function ContractDetailsForm({
     services: [createDefaultService()],
     overallTotalValue: '',
     renewalDate: '',
-    reviewDate: '',
     notes: '',
     contactDetails: '',
     primaryAppOwner: '',
@@ -42,16 +63,45 @@ export function ContractDetailsForm({
     accessReviewCycle: 'Quarterly',
     securityTier: 'Tier 2',
     contractFileUrl: '',
+    planName: '',
+    stitchflowConnection: 'CSV Upload/API coming soon',
     ...initialDetails
   }));
-  console.log('in ContractDetailsForm view localDetails', localDetails);
+
+  const [showAdditionalDetails, setShowAdditionalDetails] = useState(false);
 
   const handleChange = (field: keyof ContractDetails, value: string) => {
     const newDetails = { ...localDetails, [field]: value };
     
-    if (field === 'renewalDate' && value) {
-      const reviewDate = calculateReviewDate(value);
-      newDetails.reviewDate = reviewDate;
+    // Special handling for renewal date
+    if (field === 'renewalDate') {
+      if (value === 'N/A') {
+        newDetails.renewalDate = 'N/A';
+        newDetails.reviewDate = 'N/A';
+      } else if (value) {
+        // Allow typing but only process when it's a complete date
+        if (value.length === 10) {  // Only process when format is complete MM/DD/YYYY
+          try {
+            // Convert from MM/DD/YYYY to YYYY-MM-DD for storage
+            const isoDate = parseUSDate(value);
+            const dateValue = new Date(isoDate);
+            
+            if (!isNaN(dateValue.getTime())) {
+              newDetails.renewalDate = isoDate;
+              // Calculate review date (2 months before renewal)
+              const reviewDate = new Date(dateValue);
+              reviewDate.setMonth(reviewDate.getMonth() - 2);
+              newDetails.reviewDate = reviewDate.toISOString().split('T')[0];
+            }
+          } catch (e) {
+            console.error('Error parsing date:', e);
+            return;
+          }
+        } else {
+          // Just update the display value while user is typing
+          newDetails.renewalDate = value;
+        }
+      }
     }
     
     setLocalDetails(newDetails);
@@ -62,11 +112,12 @@ export function ContractDetailsForm({
     const services = [...(localDetails.services || [])];
     services[index] = service;
     
-    const newOverallTotal = calculateOverallTotalValue(services);
     const newDetails = { 
       ...localDetails, 
       services,
-      overallTotalValue: newOverallTotal
+      overallTotalValue: hasMultipleServices ? 
+        services.reduce((sum, s) => sum + (parseFloat(s.totalCost) || 0), 0).toString() 
+        : services[0]?.totalCost || '0'
     };
     
     setLocalDetails(newDetails);
@@ -95,88 +146,103 @@ export function ContractDetailsForm({
     onChange(newDetails);
   };
 
-  const [stitchflowConnection, setStitchflowConnection] = useState('API Supported');
-  useEffect(() => {
-    const checkAppStatus = async () => {
-      try {
-        const app = await appService.getAppById(appId);
-        const isSupported = app.is_predefined || app.api_supported;
-        setStitchflowConnection(isSupported ? 'API Supported' : 'CSV Upload/API coming soon');
-      } catch (error) {
-        console.error('Error fetching app status:', error);
-        setStitchflowConnection('CSV Upload/API coming soon');
-      }
-    };
-    
-    if (appId) {
-      checkAppStatus();
-    }
-  }, [appId]);
-
   const handleSave = () => {
     onSubmit?.(localDetails as ContractDetails);
   };
 
+  const isApiSupported = localDetails.stitchflowConnection === 'API Supported';
+  const hasMultipleServices = (localDetails.services?.length || 0) > 1;
+  const isAnnualLicense = localDetails.services?.[0]?.licenseType === 'Annual';
+
+  // Update renewal date when license type changes
+  React.useEffect(() => {
+    if (!isAnnualLicense && localDetails.renewalDate && localDetails.renewalDate !== 'N/A') {
+      const newDetails = { ...localDetails, renewalDate: 'N/A', reviewDate: 'N/A' };
+      setLocalDetails(newDetails);
+      onChange(newDetails);
+    }
+  }, [isAnnualLicense]);
+
   return (
     <div className="space-y-6">
-      <div>
-        <FormLabel>Stitchflow Connection</FormLabel>
-        <div className={`px-4 py-2.5 rounded-lg border ${
-          stitchflowConnection === 'API Supported'
-            ? 'bg-green-50 border-green-200 text-green-700 font-medium'
-            : 'bg-yellow-50 border-yellow-200 text-yellow-700 font-medium'
-        }`}>
-          {stitchflowConnection}
+      <div className="grid grid-cols-12 gap-3 max-w-2xl">
+        <div className="col-span-8">
+          <FormLabel>Plan Name</FormLabel>
+          <FormInput
+            value={localDetails.planName || ''}
+            onChange={(e) => handleChange('planName', e.target.value)}
+            placeholder="Enter plan name"
+          />
+        </div>
+        <div className="col-span-4">
+          <FormLabel>Connection Type</FormLabel>
+          <FormSelect
+            value={localDetails.stitchflowConnection || 'CSV Upload/API coming soon'}
+            onChange={(e) => handleChange('stitchflowConnection', e.target.value)}
+            options={STITCHFLOW_CONNECTION_OPTIONS}
+          />
         </div>
       </div>
 
       <div className="space-y-4">
         {localDetails.services?.map((service, index) => (
-            <ServiceGroup
-              key={service.id}
-              service={service}
-              onChange={(updated) => handleServiceChange(index, updated)}
-              onRemove={() => handleRemoveService(index)}
-              isOnly={localDetails.services?.length === 1}
-            />
-          ))}
+          <ServiceGroup
+            key={service.id}
+            service={service}
+            onChange={(updated) => handleServiceChange(index, updated)}
+            onRemove={() => handleRemoveService(index)}
+            isOnly={localDetails.services?.length === 1}
+          />
+        ))}
         
-        <button
+        {/* <button
           onClick={handleAddService}
           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
         >
           <Plus className="h-4 w-4" />
           Add new service
-        </button>
+        </button> */}
       </div>
 
-      <div>
-        <FormLabel>Overall Total Value ($)</FormLabel>
-        <FormInput
-          value={localDetails.overallTotalValue || ''}
-          onChange={(e) => handleChange('overallTotalValue', e.target.value)}
-          placeholder="Enter overall total value"
-        />
-      </div>
+      {hasMultipleServices && (
+        <div>
+          <FormLabel>Overall Total Value ($)</FormLabel>
+          <FormInput
+            value={localDetails.overallTotalValue || ''}
+            onChange={(e) => handleChange('overallTotalValue', e.target.value)}
+            placeholder="Enter overall total value"
+          />
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-6">
+      {isAnnualLicense && (
         <div>
           <FormLabel>Renewal Date</FormLabel>
           <FormInput
             type="date"
-            value={localDetails.renewalDate || ''}
-            onChange={(e) => handleChange('renewalDate', e.target.value)}
+            value={localDetails.renewalDate === 'N/A' ? '' : 
+              localDetails.renewalDate ? 
+                // Convert MM/DD/YYYY to YYYY-MM-DD for date input
+                localDetails.renewalDate.split('/').reverse().join('-') : 
+                ''
+            }
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value) {
+                // Convert YYYY-MM-DD to MM/DD/YYYY
+                const [year, month, day] = value.split('-');
+                handleChange('renewalDate', `${month}/${day}/${year}`);
+              } else {
+                handleChange('renewalDate', '');
+              }
+            }}
+            placeholder="Select date"
           />
+          {/* {localDetails.renewalDate && 
+           localDetails.renewalDate !== 'N/A' && 
+           localDetails.reviewDate } */}
         </div>
-        <div>
-          <FormLabel>Access Review Date</FormLabel>
-          <FormInput
-            type="date"
-            value={localDetails.reviewDate || ''}
-            onChange={(e) => handleChange('reviewDate', e.target.value)}
-          />
-        </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-6">
         <div>
@@ -187,6 +253,7 @@ export function ContractDetailsForm({
             placeholder="Enter primary app owner"
           />
         </div>
+
         <div>
           <FormLabel>Secondary App Owner</FormLabel>
           <FormInput
@@ -206,6 +273,7 @@ export function ContractDetailsForm({
             options={ACCESS_REVIEW_CYCLES}
           />
         </div>
+
         <div>
           <FormLabel>Security Tier</FormLabel>
           <FormSelect
@@ -217,64 +285,66 @@ export function ContractDetailsForm({
       </div>
 
       <div>
-        <FormLabel>Contract File URL</FormLabel>
-        <FormInput
-          type="url"
-          value={localDetails.contractFileUrl || ''}
-          onChange={(e) => handleChange('contractFileUrl', e.target.value)}
-          placeholder="Enter contract URL"
-        />
-      </div>
+        <button
+          type="button"
+          onClick={() => setShowAdditionalDetails(!showAdditionalDetails)}
+          className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+        >
+          {showAdditionalDetails ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+          {showAdditionalDetails ? 'Hide Additional Details' : 'Show Additional Details'}
+        </button>
 
-      <div>
-        <FormLabel>Contact Information</FormLabel>
-        <FormTextArea
-          value={localDetails.contactDetails || ''}
-          onChange={(e) => handleChange('contactDetails', e.target.value)}
-          placeholder="Enter contact details for all associated parties"
-        />
-      </div>
+        {showAdditionalDetails && (
+          <div className="mt-4 space-y-6 border-t pt-4">
+            <div>
+              <FormLabel>Contract File URL</FormLabel>
+              <FormInput
+                value={localDetails.contractFileUrl || ''}
+                onChange={(e) => handleChange('contractFileUrl', e.target.value)}
+                placeholder="Enter contract file URL"
+              />
+            </div>
 
-      <div>
-        <FormLabel>Additional Notes</FormLabel>
-        <FormTextArea
-          value={localDetails.notes || ''}
-          onChange={(e) => handleChange('notes', e.target.value)}
-          placeholder="Enter any additional notes or comments"
-        />
+            <div>
+              <FormLabel>Contact Information</FormLabel>
+              <FormTextArea
+                value={localDetails.contactDetails || ''}
+                onChange={(e) => handleChange('contactDetails', e.target.value)}
+                placeholder="Enter contact information"
+              />
+            </div>
+
+            <div>
+              <FormLabel>Additional Notes</FormLabel>
+              <FormTextArea
+                value={localDetails.notes || ''}
+                onChange={(e) => handleChange('notes', e.target.value)}
+                placeholder="Enter any additional notes or comments"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {showActions && (
-        <div className="flex justify-end space-x-4 mt-6 pt-4 border-t">
+        <div className="flex justify-end gap-4">
           <button
             onClick={onCancel}
-            disabled={isSaving}
-            className={`px-6 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors ${
-              isSaving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-800"
+            disabled={disabled}
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving}
-            className={`px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors ${
-              isSaving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            disabled={disabled || isSaving}
           >
-            {isSaving ? (
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin h-4 w-4">
-                  <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </div>
-                <span>Saving...</span>
-              </div>
-            ) : (
-              'Save'
-            )}
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
         </div>
       )}

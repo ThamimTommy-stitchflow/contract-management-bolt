@@ -17,12 +17,12 @@ interface ServiceTableProps {
 export function ServiceTable({ services }: ServiceTableProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-500 mb-2">Services</label>
+      <label className="block text-sm font-medium text-gray-500 mb-2">Modules</label>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Name</th>
+              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Module Name</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">License Type</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pricing Model</th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost/User</th>

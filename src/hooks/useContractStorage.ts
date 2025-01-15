@@ -16,6 +16,7 @@ export function useContractStorage() {
       
       try {
         const response = await contractService.getCompanyContracts(company.id);
+        console.log('response in the hook', response);
         setContracts(response);
       } catch (error) {
         console.error('Failed to load contracts:', error);
@@ -50,7 +51,8 @@ export function useContractStorage() {
             primaryAppOwner: app.contractDetails.primaryAppOwner,
             secondaryAppOwner: app.contractDetails.secondaryAppOwner,
             accessReviewCycle: app.contractDetails.accessReviewCycle,
-            securityTier: app.contractDetails.securityTier
+            securityTier: app.contractDetails.securityTier,
+            planName: app.contractDetails.planName
           }
         };
 

@@ -55,6 +55,11 @@ class StorageService:
                 if response.error:
                     raise ValueError(f"Upload failed: {response.error.message}")
 
+                # Get public URL using regular client if upload succeeded
+                file_url = self.db.storage \
+                    .from_(self.bucket_name) \
+                    .get_public_url(file_path)
+
             except Exception as upload_error:
                 print(f"Regular upload failed: {upload_error}")
                 if self.admin_client:
@@ -66,13 +71,14 @@ class StorageService:
                             content,
                             {"contentType": "application/pdf"}
                         )
+                    
+                    # Get public URL using admin client since we used it for upload
+                    file_url = self.admin_client.storage \
+                        .from_(self.bucket_name) \
+                        .get_public_url(file_path)
                 else:
                     raise
 
-            # Get public URL for the file
-            file_url = self.db.storage \
-                .from_(self.bucket_name) \
-                .get_public_url(file_path)
             print(f"File URL: {file_url}")
             return file_path, file_url
 
@@ -110,10 +116,16 @@ class StorageService:
     def get_download_url(self, file_path: str) -> str:
         """Get the download URL for a file that will work with Supabase's download endpoint"""
         try:
-            # This will return a URL that goes through Supabase's download endpoint
+            # Try with admin client first if available
+            if self.admin_client:
+                return self.admin_client.storage \
+                    .from_(self.bucket_name) \
+                    .get_public_url(file_path)
+            
+            # Fallback to regular client
             return self.db.storage \
                 .from_(self.bucket_name) \
-                .get_public_url(file_path, download=True)  # Using download parameter
+                .get_public_url(file_path)
         except Exception as e:
             print(f"Error getting download URL: {str(e)}")
             raise HTTPException(

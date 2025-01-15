@@ -65,7 +65,8 @@ export function groupContractsByApp(contracts: EnrichedContract[]): GroupedContr
       primaryAppOwner: contract.primaryAppOwner || 'Not Provided',
       secondaryAppOwner: contract.secondaryAppOwner|| 'Not Provided',
       accessReviewCycle: contract.accessReviewCycle,
-      securityTier: contract.securityTier
+      securityTier: contract.securityTier,
+      planName: contract.plan_name
     };
   });
 }

@@ -62,7 +62,8 @@ export const contractService = {
         primary_app_owner: data.contractDetails.primaryAppOwner || null,
         secondary_app_owner: data.contractDetails.secondaryAppOwner || null,
         access_review_cycle: data.contractDetails.accessReviewCycle || null,
-        security_tier: data.contractDetails.securityTier || null
+        security_tier: data.contractDetails.securityTier || null,
+        plan_name: data.contractDetails.planName || null
       };
 
       if (!contract) {
@@ -98,6 +99,7 @@ export const contractService = {
   async getCompanyContracts(companyId: string) {
     try {
       const response = await api.get(`/contracts/company/${companyId}`);
+      console.log('in contracts service', response.data);
       return response.data;
     } catch (error: unknown) {
       console.error('Error getting company contracts:', error);

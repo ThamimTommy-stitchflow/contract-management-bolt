@@ -5,6 +5,7 @@ import { GroupedContract } from '../../../utils/contractGrouping';
 import { differenceInDays, differenceInMonths, parseISO, isPast } from 'date-fns';
 // import { supabase } from '../../../lib/supabaseClient';
 import { formatToUSDate } from '../../../utils/dateUtils';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface ContractCardProps {
   contract: GroupedContract;
@@ -149,39 +150,44 @@ export function ContractCard({
   return (
     <div className="px-4 py-2.5">
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-6">
-          <div>
-            <span className="text-xs text-gray-500 mr-1">Renewal:</span>
-            <span className="text-sm text-gray-900">
-              {contract.services[0]?.license_type === 'Monthly' ? 'N/A' :
-                (contract.renewalDate && contract.renewalDate !== 'N/A' 
+        <div className="grid grid-cols-5 gap-6 min-w-0 flex-1">
+          <div className="min-w-0">
+            <span className="text-xs text-gray-500 block">Renewal</span>
+            <div className="flex items-center">
+              <span className="text-sm text-gray-900 truncate">
+                {contract.renewalDate && contract.services[0]?.license_type !== 'Monthly' && contract.renewalDate !== 'N/A' 
                   ? formatToUSDate(contract.renewalDate) 
-                  : 'N/A')}
+                  : <span className="text-xs text-gray-400">N/A</span>}
+              </span>
+              {contract.services[0]?.license_type !== 'Monthly' && getRenewalBadge()}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <span className="text-xs text-gray-500 block">Owner</span>
+            <span className="text-sm text-gray-900 truncate" title={contract.primaryAppOwner || '-'}>
+              {contract.primaryAppOwner || '-'}
             </span>
-            {getRenewalBadge()}
           </div>
-          <div>
-            <span className="text-xs text-gray-500 mr-1">Owner:</span>
-            <span className="text-sm text-gray-900">{contract.primaryAppOwner || '-'}</span>
+          <div className="min-w-0">
+            <span className="text-xs text-gray-500 block">License Type</span>
+            <span className="text-sm text-gray-900 truncate">
+              {contract.services[0]?.license_type || '-'}
+            </span>
           </div>
-          <div>
-            <span className="text-xs text-gray-500 mr-1">License Type:</span>
-            <span className="text-sm text-gray-900">{contract.services[0]?.license_type || '-'}</span>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500 mr-1">Cost per seat:</span>
-            <span className="text-sm text-gray-900">
+          <div className="min-w-0">
+            <span className="text-xs text-gray-500 block">Cost per user per month($)</span>
+            <span className="text-sm text-gray-900 truncate">
               {contract.services.some(s => s.cost_per_user) ? 
                 `$${contract.services.reduce((sum, service) => 
                   sum + (Number(service.cost_per_user) || 0), 0)}`
-                : 'N/A'}
+                : <span className="text-xs text-gray-400">N/A</span>}
             </span>
           </div>
         </div>
 
         <button
           onClick={onToggleExpand}
-          className="flex items-center text-xs text-gray-500 hover:text-gray-700 ml-2"
+          className="flex items-center text-xs text-gray-500 hover:text-gray-700 ml-6 flex-shrink-0"
         >
           {isExpanded ? (
             <>
@@ -201,37 +207,45 @@ export function ContractCard({
       {isExpanded && (
         <div className="mt-4 space-y-4 border-t border-gray-200 pt-4">
           {/* Additional Details Grid */}
-          <div className="px-4 grid grid-cols-4 gap-6">
-            <div>
+          <div className="grid grid-cols-5">
+            <div className="min-w-0">
               <span className="text-xs text-gray-500 block">Security Tier</span>
-              <span className="text-sm text-gray-900">{contract.securityTier || '-'}</span>
+              <span className="text-sm text-gray-900 truncate" title={contract.securityTier || '-'}>
+                {contract.securityTier || '-'}
+              </span>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-xs text-gray-500 block">No. of Seats</span>
-              <span className="text-sm text-gray-900">{totalLicenses}</span>
+              <span className="text-sm text-gray-900 truncate">
+                {totalLicenses}
+              </span>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-xs text-gray-500 block">Value</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium text-gray-900 truncate">
                 ${contract.overallTotalValue || '0.00'}
               </span>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-xs text-gray-500 block">Review Cycle</span>
-              <span className="text-sm text-gray-900">{contract.accessReviewCycle || '-'}</span>
+              <span className="text-sm text-gray-900 truncate" title={contract.accessReviewCycle || '-'}>
+                {contract.accessReviewCycle || '-'}
+              </span>
             </div>
           </div>
 
           {/* Secondary Owner */}
           <div className="px-4">
             <span className="text-xs text-gray-500 block">Secondary Owner</span>
-            <span className="text-sm text-gray-900">{contract.secondaryAppOwner || '-'}</span>
+            <span className="text-sm text-gray-900 truncate" title={contract.secondaryAppOwner || '-'}>
+              {contract.secondaryAppOwner || '-'}
+            </span>
           </div>
 
           {/* Contract File Section */}
           <div className="px-4">
             <div className="flex items-center space-x-4">
-              <span className="text-xs text-gray-500 mr-1">Contract details:</span>
+              <span className="text-xs text-gray-500">Contract details:</span>
               {renderContractUrl()}
             </div>
           </div>

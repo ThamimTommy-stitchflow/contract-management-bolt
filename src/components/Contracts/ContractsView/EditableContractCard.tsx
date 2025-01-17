@@ -80,6 +80,7 @@ export function EditableContractCard({
   const handleSave = async (details: ContractDetails): Promise<void> => {
     try {
       setIsSaving(true);
+      console.log('EditableContractCard - Before Save - Details:', details);
       await onSave(contract.appId, details);
       setIsEditing(false);
       setIsExpanded(false);
@@ -109,30 +110,32 @@ export function EditableContractCard({
       {/* Header */}
       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <div>
-              <h3 className="text-base font-medium text-gray-900">{contract.appName}</h3>
+          <div className="flex items-center min-w-0">
+            <div className="w-[80px] mr-4">
+              <h3 className="text-base font-medium text-gray-900 truncate" title={contract.appName}>{contract.appName}</h3>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-gray-50/70 text-gray-600">
-                  <span>
-                    Plan: {contract.planName || 'N/A'}
-                  </span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-gray-50/70 text-gray-600 w-[150px]">
+                <span className="truncate">
+                  Plan: {contract.planName || <span className="text-gray-400">N/A</span>}
+                </span>
               </span>
-              <span className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-medium ${
+              <span className={`inline-flex items-center px-1 py-1 rounded-md text-xs font-medium ${
                 contract.stitchflowConnection === 'API Supported'
                   ? 'bg-green-50/70 text-green-700'
                   : contract.stitchflowConnection === 'CSV Upload/API coming soon'
-                    ? 'bg-amber-50/70 text-amber-700' 
-                    : 'bg-gray-50/70 text-gray-600'
+                    ? 'bg-blue-50/70 text-blue-700' 
+                    : 'bg-gray-100 text-gray-700'
               }`}>
-                Stitchflow Connection: {
-                  contract.stitchflowConnection === 'API Supported' 
-                    ? 'API'
-                    : contract.stitchflowConnection === 'CSV Upload/API coming soon'
-                      ? 'CSV'
-                      : 'Not Connected'
-                }
+                <span className="truncate">
+                  Stitchflow Connection: {
+                    contract.stitchflowConnection === 'API Supported' 
+                      ? 'API'
+                      : contract.stitchflowConnection === 'CSV Upload/API coming soon'
+                        ? 'CSV'
+                        : 'Not Connected'
+                  }
+                </span>
               </span>
             </div>
           </div>

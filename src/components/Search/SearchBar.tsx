@@ -8,9 +8,11 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   onSelectApp: (app: App) => void;
   filteredApps: App[];
+  onAddCustomApp: (app: string) => void;
+  isAddingApp?: boolean;
 }
 
-export function SearchBar({ value, onChange, onSelectApp, filteredApps }: SearchBarProps) {
+export function SearchBar({ value, onChange, onSelectApp, filteredApps, onAddCustomApp, isAddingApp = false }: SearchBarProps) {
   return (
     <div className="relative flex-1">
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -33,6 +35,8 @@ export function SearchBar({ value, onChange, onSelectApp, filteredApps }: Search
         searchQuery={value}
         filteredApps={filteredApps}
         onSelectApp={onSelectApp}
+        onAddCustomApp={onAddCustomApp}
+        isAddingApp={isAddingApp}
       />
     </div>
   );

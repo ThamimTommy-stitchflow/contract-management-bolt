@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { App } from '../../types/app';
 import { generateAppId } from '../../utils/appUtils';
 
@@ -7,12 +7,16 @@ interface SearchResultsProps {
   searchQuery: string;
   filteredApps: App[];
   onSelectApp: (app: App) => void;
+  onAddCustomApp: (name: string) => void;
+  isAddingApp?: boolean;
 }
 
 export function SearchResults({ 
   searchQuery, 
   filteredApps = [], 
-  onSelectApp 
+  onSelectApp,
+  onAddCustomApp,
+  isAddingApp = false
 }: SearchResultsProps) {
   const query = searchQuery.trim().toLowerCase();
   
@@ -30,12 +34,8 @@ export function SearchResults({
   );
 
   const handleAddCustomApp = () => {
-    const newApp: App = {
-      id: generateAppId(query),
-      name: searchQuery.trim(), // Use original case for the name
-      category: 'CSV Uploads'
-    };
-    onSelectApp(newApp);
+    const name = searchQuery.trim();
+    onAddCustomApp(name)
   };
 
   return (
@@ -62,10 +62,15 @@ export function SearchResults({
           {matchingApps.length > 0 && <div className="border-t border-gray-100" />}
           <button
             onClick={handleAddCustomApp}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center text-blue-600"
+            disabled={isAddingApp}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center text-blue-600 disabled:opacity-50"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Add "{searchQuery.trim()}"
+            {isAddingApp ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            {isAddingApp ? 'Adding...' : `Add "${searchQuery.trim()}"`}
           </button>
         </>
       )}

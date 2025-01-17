@@ -101,7 +101,7 @@ export function ServiceGroup({ service: initialService, onChange, onRemove, isOn
 
         <div className="grid grid-cols-2 gap-6">
           <div className="space-y-2">
-            <FormLabel>Cost per User ($)</FormLabel>
+            <FormLabel>Cost per user per month ($)</FormLabel>
             <FormInput
               type="text"
               value={isCostPerUserNA ? 'N/A' : localService.costPerUser}

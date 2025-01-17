@@ -79,10 +79,20 @@ export function ContractDetailsForm({
         newDetails.renewalDate = 'N/A';
         newDetails.reviewDate = 'N/A';
       } else if (value) {
-        // Allow typing but only process when it's a complete date
-        if (value.length === 10) {  // Only process when format is complete MM/DD/YYYY
-          try {
-            // Convert from MM/DD/YYYY to YYYY-MM-DD for storage
+        try {
+          // If it's already in YYYY-MM-DD format (from date input)
+          if (value.includes('-')) {
+            const dateValue = new Date(value);
+            if (!isNaN(dateValue.getTime())) {
+              newDetails.renewalDate = value;
+              // Calculate review date (2 months before renewal)
+              const reviewDate = new Date(dateValue);
+              reviewDate.setMonth(reviewDate.getMonth() - 2);
+              newDetails.reviewDate = reviewDate.toISOString().split('T')[0];
+            }
+          } 
+          // If it's in MM/DD/YYYY format
+          else if (value.length === 10) {
             const isoDate = parseUSDate(value);
             const dateValue = new Date(isoDate);
             
@@ -93,14 +103,17 @@ export function ContractDetailsForm({
               reviewDate.setMonth(reviewDate.getMonth() - 2);
               newDetails.reviewDate = reviewDate.toISOString().split('T')[0];
             }
-          } catch (e) {
-            console.error('Error parsing date:', e);
-            return;
+          } else {
+            // Just update the display value while user is typing
+            newDetails.renewalDate = value;
           }
-        } else {
-          // Just update the display value while user is typing
-          newDetails.renewalDate = value;
+        } catch (e) {
+          console.error('Error parsing date:', e);
+          return;
         }
+      } else {
+        newDetails.renewalDate = '';
+        newDetails.reviewDate = '';
       }
     }
     
@@ -156,8 +169,12 @@ export function ContractDetailsForm({
 
   // Update renewal date when license type changes
   React.useEffect(() => {
-    if (!isAnnualLicense && localDetails.renewalDate && localDetails.renewalDate !== 'N/A') {
-      const newDetails = { ...localDetails, renewalDate: 'N/A', reviewDate: 'N/A' };
+    if (!isAnnualLicense && localDetails.renewalDate) {
+      const newDetails = { 
+        ...localDetails, 
+        renewalDate: '', 
+        reviewDate: '' 
+      };
       setLocalDetails(newDetails);
       onChange(newDetails);
     }
@@ -221,26 +238,13 @@ export function ContractDetailsForm({
           <FormInput
             type="date"
             value={localDetails.renewalDate === 'N/A' ? '' : 
-              localDetails.renewalDate ? 
-                // Convert MM/DD/YYYY to YYYY-MM-DD for date input
-                localDetails.renewalDate.split('/').reverse().join('-') : 
+              localDetails.renewalDate && localDetails.renewalDate.includes('-') ? 
+                localDetails.renewalDate : 
                 ''
             }
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value) {
-                // Convert YYYY-MM-DD to MM/DD/YYYY
-                const [year, month, day] = value.split('-');
-                handleChange('renewalDate', `${month}/${day}/${year}`);
-              } else {
-                handleChange('renewalDate', '');
-              }
-            }}
+            onChange={(e) => handleChange('renewalDate', e.target.value)}
             placeholder="Select date"
           />
-          {/* {localDetails.renewalDate && 
-           localDetails.renewalDate !== 'N/A' && 
-           localDetails.reviewDate } */}
         </div>
       )}
 

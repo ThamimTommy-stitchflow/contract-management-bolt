@@ -16,9 +16,10 @@ interface ContractsViewProps {
   onEdit?: (appId: string) => void;
   onRemove?: (appId: string) => void;
   onUpdateDetails: (appId: string, details: Partial<ContractDetails>) => Promise<void>;
+  onOpenAppSelection: () => void;
 }
 
-export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: ContractsViewProps) {
+export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails, onOpenAppSelection }: ContractsViewProps) {
   // 1. Move all hooks to the top
   const [sortBy, setSortBy] = useState<SortOption>('renewal-priority');
   const [localContracts, setLocalContracts] = useState(contracts);
@@ -199,9 +200,10 @@ export function ContractsView({ contracts, onEdit, onRemove, onUpdateDetails }: 
   return (
     <div className="space-y-6">
       <ContractHeader 
-        totalValue={totalContractValue}
+        totalApps={localContracts.length}
         sortValue={sortBy}
         onSortChange={setSortBy}
+        onOpenAppSelection={onOpenAppSelection}
       />
 
       <div className="space-y-4">

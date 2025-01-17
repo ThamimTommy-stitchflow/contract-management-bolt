@@ -5,7 +5,7 @@ import { GroupedContract } from '../../../utils/contractGrouping';
 import { differenceInDays, differenceInMonths, parseISO, isPast } from 'date-fns';
 // import { supabase } from '../../../lib/supabaseClient';
 import { formatToUSDate } from '../../../utils/dateUtils';
-import { supabase } from '../../../lib/supabaseClient';
+// import { supabase } from '';
 
 interface ContractCardProps {
   contract: GroupedContract;

@@ -1,7 +1,8 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 from .base import BaseDBModel
+from .contract import ContractResponse
 
 class AppCategory(str, Enum):
     IDENTITY = "Identity & Access Management"
@@ -17,17 +18,20 @@ class AppCategory(str, Enum):
     CSV = "CSV Uploads"
 
 class AppBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    category: AppCategory
-    is_predefined: bool = True
-    api_supported: bool = False
+    name: str
+    category: str
+    is_predefined: bool = False
+    api_supported: Optional[bool] = False
 
 class AppCreate(AppBase):
     pass
 
-class AppResponse(AppBase, BaseDBModel):
-    pass
+class AppResponse(AppBase):
+    id: str
 
 class CompanyAppCreate(BaseModel):
-    app_id: str
     company_id: str
+    app_id: str
+
+class CompanyAppWithContractResponse(AppResponse):
+    contract: Optional[ContractResponse] = None

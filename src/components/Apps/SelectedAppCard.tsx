@@ -1,29 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
-import { SelectedApp } from '../../types/app';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import { ContractDetails, SelectedApp, ServiceDetails } from '../../types/app';
+import { StitchflowConnection, AccessReviewCycle, SecurityTier } from '../../types/contracts';
 import { ContractDetailsForm } from './ContractDetailsForm';
 import { useScrollToTop } from '../../hooks/useScrollToTop';
+import { isEqual } from 'lodash';
 
 interface SelectedAppCardProps {
   app: SelectedApp;
   onRemove: (appId: string) => void;
-  onUpdateDetails: (appId: string, details: any) => void;
+  onUpdateDetails: (appId: string, details: Partial<ContractDetails>) => void;
   isExpanded?: boolean;
   onExpandChange?: (isExpanded: boolean) => void;
-  onSave?: () => void;
 }
 
-export function SelectedAppCard({ 
+export const SelectedAppCard = forwardRef<{ 
+  getLocalChanges: () => Partial<ContractDetails> | undefined,
+  hasChanges: () => boolean 
+}, SelectedAppCardProps>(({ 
   app, 
   onRemove, 
   onUpdateDetails, 
   isExpanded: defaultExpanded,
-  onExpandChange,
-  onSave
-}: SelectedAppCardProps) {
+  onExpandChange
+}, ref) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded || false);
-  const [tempDetails, setTempDetails] = useState(app.contractDetails || {});
+  const [localDetails, setLocalDetails] = useState<Partial<ContractDetails> | undefined>(app.contractDetails);
   const scrollToTop = useScrollToTop();
+
+  useImperativeHandle(ref, () => ({
+    getLocalChanges: () => {
+      if (!localDetails || !app.contractDetails) return undefined;
+      
+      // Only include fields that have actually changed
+      const changes: Partial<ContractDetails> = {};
+      const fields: Array<keyof ContractDetails> = [
+        'services', 'overallTotalValue', 'renewalDate', 'contractFileUrl',
+        'notes', 'reviewDate', 'contactDetails', 'stitchflowConnection',
+        'primaryAppOwner', 'secondaryAppOwner', 'accessReviewCycle', 'securityTier'
+      ];
+      
+      let hasChanges = false;
+      fields.forEach(key => {
+        const localValue = localDetails[key];
+        const originalValue = app.contractDetails?.[key];
+        
+        // Only include the field if it has changed and is not undefined
+        if (localValue !== undefined && !isEqual(localValue, originalValue)) {
+          hasChanges = true;
+          // Ensure we're only including fields that exist in ContractDetails
+          if (key === 'services') {
+            changes.services = localValue as ServiceDetails[];
+          } else if (key === 'stitchflowConnection') {
+            changes.stitchflowConnection = localValue as StitchflowConnection;
+          } else if (key === 'accessReviewCycle') {
+            changes.accessReviewCycle = localValue as AccessReviewCycle;
+          } else if (key === 'securityTier') {
+            changes.securityTier = localValue as SecurityTier;
+          } else {
+            changes[key] = localValue as string;
+          }
+        }
+      });
+      
+      return hasChanges ? changes : undefined;
+    },
+    hasChanges: () => !isEqual(localDetails, app.contractDetails)
+  }));
 
   useEffect(() => {
     if (defaultExpanded !== undefined) {
@@ -32,31 +75,17 @@ export function SelectedAppCard({
   }, [defaultExpanded]);
 
   useEffect(() => {
-    setTempDetails(app.contractDetails || {});
+    setLocalDetails(app.contractDetails);
   }, [app.contractDetails]);
+
+  const handleUpdateDetails = (details: Partial<ContractDetails>) => {
+    setLocalDetails(details);
+  };
 
   const handleExpandToggle = () => {
     const newExpandedState = !isExpanded;
     setIsExpanded(newExpandedState);
     onExpandChange?.(newExpandedState);
-    if (!newExpandedState) {
-      scrollToTop();
-    }
-  };
-
-  const handleSave = () => {
-    onUpdateDetails(app.id, tempDetails);
-    onSave?.();
-    setIsExpanded(false);
-    onExpandChange?.(false);
-    scrollToTop();
-  };
-
-  const handleCancel = () => {
-    setTempDetails(app.contractDetails || {});
-    setIsExpanded(false);
-    onExpandChange?.(false);
-    scrollToTop();
   };
 
   return (
@@ -72,9 +101,15 @@ export function SelectedAppCard({
             className="text-gray-400 hover:text-gray-600"
           >
             {isExpanded ? (
-              <ChevronUp className="h-5 w-5" />
+              <div className="flex items-center gap-1">
+                <ChevronUp className="h-5 w-5" />
+                <span className="text-sm">Hide details</span>
+              </div>
             ) : (
-              <ChevronDown className="h-5 w-5" />
+              <div className="flex items-center gap-1">
+                <ChevronDown className="h-5 w-5" />
+                <span className="text-sm">Add details</span>
+              </div>
             )}
           </button>
           <button
@@ -89,14 +124,14 @@ export function SelectedAppCard({
       {isExpanded && (
         <div className="border-t border-gray-200 p-4">
           <ContractDetailsForm
-            details={tempDetails}
-            onChange={setTempDetails}
-            onSave={handleSave}
-            onCancel={handleCancel}
+            details={localDetails || {}}
+            onChange={handleUpdateDetails}
+            onCancel={handleExpandToggle}
             appId={app.id}
+            showActions={false}
           />
         </div>
       )}
     </div>
   );
-}
+});

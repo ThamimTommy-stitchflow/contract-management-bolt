@@ -47,27 +47,41 @@ export function FormTextArea({
   );
 }
 
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
 export function FormSelect({ 
   value,
   onChange,
   options,
+  className,
   ...props
-}: React.SelectHTMLAttributes<HTMLSelectElement> & { options: string[] }) {
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { 
+  options: SelectOption[] | string[];
+}) {
+  const normalizedOptions = Array.isArray(options) && typeof options[0] === 'string'
+    ? (options as string[]).map(opt => ({ value: opt, label: opt }))
+    : options as SelectOption[];
+
   return (
     <div className="relative">
       <select
         value={value}
         onChange={onChange}
-        className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-700 bg-white appearance-none cursor-pointer transition-colors duration-200 pr-10"
+        className={className || "w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-700 bg-white appearance-none cursor-pointer transition-colors duration-200 pr-10"}
         {...props}
       >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
+        {normalizedOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+      {!className && (
+        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+      )}
     </div>
   );
 }

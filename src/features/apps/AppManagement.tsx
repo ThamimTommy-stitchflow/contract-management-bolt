@@ -1,26 +1,22 @@
-import React, { useState, useCallback } from 'react';
-import { Navigation } from '../../components/Navigation/Navigation';
-import { SearchBar } from '../../components/Search/SearchBar';
-import { AppList } from '../../components/Apps/AppList';
-import { SelectedApps } from '../../components/Apps/SelectedApps';
-import { CategoryChips } from '../../components/Category/CategoryChips';
-import { ActionButtons } from '../../components/Actions/ActionButtons';
-import { ContractsView } from '../../components/Contracts/ContractsView';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AppHeader } from '../../components/Header/AppHeader';
-import { CATEGORIES } from '../../constants/categories';
-import { apps as predefinedApps } from '../../data/apps';
+import { ContractsHeader } from '../../components/Contracts/ContractsHeader';
+import { ContractsView } from '../../components/Contracts/ContractsView/ContractsView';
+import { AppSelectionModal } from '../../components/AppSelection/AppSelectionModal';
 import { useSelectedApps } from '../../hooks/useSelectedApps';
 import { useContractStorage } from '../../hooks/useContractStorage';
 import { useContractSync } from '../../hooks/useContractSync';
-import { filterAppsBySearch } from '../../utils/filterApps';
-import { parseAppList } from '../../utils/appListParser';
-import { fileToApp } from '../../utils/fileToApp';
+import { App, ContractDetails } from '../../types/app';
+import { appService } from '../../services/apps';
+import { contractService } from '../../services/contracts';
+import { useCompany } from '../../context/CompanyContext';
 
 export function AppManagement() {
-  const [activeTab, setActiveTab] = useState('apps');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isAppSelectionOpen, setIsAppSelectionOpen] = useState(false);
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
+  const [apps, setApps] = useState<App[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     selectedApps,
@@ -31,105 +27,122 @@ export function AppManagement() {
     customApps
   } = useSelectedApps();
 
-  const { contracts, removeContract } = useContractStorage();
-  const { syncContracts } = useContractSync(selectedApps);
+  const { contracts, removeContract, setContracts } = useContractStorage();
+  const { company } = useCompany();
 
-  // Combine predefined apps with custom apps
-  const allApps = [...predefinedApps, ...customApps];
+  // Update contracts whenever selectedApps changes or when contract-updated event is fired
+  useEffect(() => {
+    const updateContractView = async () => {
+      if (!company?.id) return;
+      try {
+        const updatedContracts = await contractService.getCompanyContracts(company.id);
+        setContracts(updatedContracts);
+      } catch (error) {
+        console.error('Failed to update contracts:', error);
+      }
+    };
 
-  const filteredApps = filterAppsBySearch(
-    selectedCategory 
-      ? allApps.filter(app => app.category === selectedCategory)
-      : allApps,
-    searchQuery
-  );
+    // Initial update
+    updateContractView();
 
-  const handleAppListSubmit = useCallback((appList: string) => {
-    const parsedApps = parseAppList(appList);
-    handleBulkSelect(parsedApps);
-  }, [handleBulkSelect]);
+    // Listen for contract updates
+    const handleContractUpdate = () => {
+      updateContractView();
+    };
 
-  const handleContractUpload = useCallback((files: File[]) => {
-    const apps = files.map(fileToApp);
-    handleBulkSelect(apps);
-  }, [handleBulkSelect]);
+    window.addEventListener('contract-updated', handleContractUpdate);
 
-  const handleEditContract = useCallback((appId: string) => {
-    setEditingAppId(appId);
-    setActiveTab('apps');
+    return () => {
+      window.removeEventListener('contract-updated', handleContractUpdate);
+    };
+  }, [company?.id, selectedApps, setContracts]);
+
+  // Fetch apps from backend
+  useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        const fetchedApps = await appService.getAllApps();
+        setApps(fetchedApps);
+      } catch (err) {
+        console.error('Error fetching apps:', err);
+      }
+    };
+
+    fetchApps();
   }, []);
+
+  // Combine backend apps with custom apps
+  const allApps = [...apps, ...customApps];
+
+  const handleEditContract = useCallback(async (appId: string) => {
+    if (!company?.id) return;
+    
+    try {
+      // Fetch fresh contract details
+      const updatedContracts = await contractService.getCompanyContracts(company.id);
+      setContracts(updatedContracts);
+      
+      // Set editing state and open modal
+      setEditingAppId(appId);
+      setIsAppSelectionOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch contract details:', error);
+    }
+  }, [company?.id]);
 
   const handleRemoveContract = useCallback((appId: string) => {
     removeContract(appId);
     handleRemoveApp(appId);
   }, [handleRemoveApp, removeContract]);
 
-  const handleSave = useCallback(() => {
-    syncContracts();
-  }, [syncContracts]);
+  const handleContractUpdate = useCallback(async (appId: string, details: Partial<ContractDetails>) => {
+    if (!company?.id) return;
+    try {
+      console.log('AppManagement - Before Update - Details:', details);
+      await handleUpdateDetails(appId, details);
+
+      // Fetch updated contracts and trigger a re-render
+      const updatedContracts = await contractService.getCompanyContracts(company.id);
+      setContracts(updatedContracts);
+      // Close the modal without reopening it
+      setIsAppSelectionOpen(false);
+    } catch (error) {
+      console.error('Failed to update contract:', error);
+    }
+  }, [company?.id, handleUpdateDetails, setContracts]);
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-1 py-8">
         <AppHeader />
-        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         
-        {activeTab === 'apps' ? (
-          <>
-            <div className="flex gap-4 mb-6">
-              <ActionButtons 
-                onAppListSubmit={handleAppListSubmit}
-                onContractUpload={handleContractUpload}
-              />
-            </div>
+        {/* <ContractsHeader 
+          totalApps={contracts.length}
+        /> */}
 
-            <div className="mb-8">
-              <SelectedApps
-                selectedApps={selectedApps}
-                onRemoveApp={handleRemoveApp}
-                onUpdateDetails={handleUpdateDetails}
-                editingAppId={editingAppId}
-                onSave={handleSave}
-              />
-            </div>
+        <ContractsView 
+          contracts={contracts} 
+          onEdit={handleEditContract}
+          onRemove={handleRemoveContract}
+          onUpdateDetails={handleContractUpdate}
+          onOpenAppSelection={() => setIsAppSelectionOpen(true)}
+        />
 
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-4">Available Apps</h2>
-                <div className="mb-6">
-                  <SearchBar value={searchQuery} onChange={setSearchQuery} />
-                </div>
-                
-                <div className="mb-6">
-                  <CategoryChips
-                    categories={CATEGORIES}
-                    selectedCategory={selectedCategory}
-                    onSelectCategory={setSelectedCategory}
-                    selectedApps={selectedApps}
-                  />
-                </div>
-                
-                <div className="space-y-8 max-h-[600px] overflow-y-auto pr-4">
-                  {CATEGORIES.map((category) => (
-                    <AppList
-                      key={category}
-                      category={category}
-                      apps={filteredApps}
-                      onSelectApp={handleSelectApp}
-                      selectedApps={selectedApps}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <ContractsView 
-            contracts={contracts} 
-            onEdit={handleEditContract}
-            onRemove={handleRemoveContract}
-          />
-        )}
+        <AppSelectionModal
+          isOpen={isAppSelectionOpen}
+          onClose={() => {
+            setIsAppSelectionOpen(false);
+            setEditingAppId(null);
+          }}
+          onSelectApp={handleSelectApp}
+          onUpdateDetails={handleContractUpdate}
+          onRemoveApp={handleRemoveApp}
+          onBulkSelect={handleBulkSelect}
+          selectedApps={selectedApps}
+          availableApps={allApps}
+          editingAppId={editingAppId}
+          currentContract={editingAppId ? contracts.find(c => c.app_id === editingAppId) : undefined}
+        />
       </div>
     </div>
   );

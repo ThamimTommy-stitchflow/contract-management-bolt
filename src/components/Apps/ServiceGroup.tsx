@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { ServiceDetails } from '../../types/app';
-import { LICENSE_TYPES, PRICING_MODELS } from '../../types/contracts';
 import { FormInput, FormLabel, FormSelect } from './FormElements';
 import { calculateTotalCost } from '../../utils/costCalculator';
+import { LICENSE_TYPES, PRICING_MODELS } from '../../types/contracts';
 
 interface ServiceGroupProps {
   service: ServiceDetails;
@@ -12,106 +12,146 @@ interface ServiceGroupProps {
   isOnly: boolean;
 }
 
-export function ServiceGroup({ service, onChange, onRemove, isOnly }: ServiceGroupProps) {
+export function ServiceGroup({ service: initialService, onChange, onRemove, isOnly }: ServiceGroupProps) {
+  const [localService, setLocalService] = useState(initialService);
+  const [isCostPerUserNA, setIsCostPerUserNA] = useState(false);
+
   const handleChange = (field: keyof ServiceDetails, value: string) => {
+    const updatedService = { ...localService, [field]: value };
+    
+    // Calculate total cost when cost per user or number of licenses changes
     if (field === 'costPerUser' || field === 'numberOfLicenses') {
-      const newTotalCost = calculateTotalCost(
-        field === 'costPerUser' ? value : service.costPerUser,
-        field === 'numberOfLicenses' ? value : service.numberOfLicenses
+      updatedService.totalCost = calculateTotalCost(
+        field === 'costPerUser' ? value : localService.costPerUser,
+        field === 'numberOfLicenses' ? value : localService.numberOfLicenses
       );
-      onChange({ 
-        ...service, 
-        [field]: value,
-        totalCost: newTotalCost
-      });
+    }
+    
+    setLocalService(updatedService);
+    onChange(updatedService);
+  };
+
+  const handleCostPerUserNAChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsCostPerUserNA(e.target.checked);
+    if (e.target.checked) {
+      const updatedService = {
+        ...localService,
+        costPerUser: 'N/A',
+        totalCost: localService.totalCost || '0'
+      };
+      setLocalService(updatedService);
+      onChange(updatedService);
     } else {
-      onChange({ ...service, [field]: value });
+      const updatedService = {
+        ...localService,
+        costPerUser: ''
+      };
+      setLocalService(updatedService);
+      onChange(updatedService);
     }
   };
 
-  // Calculate total cost when component mounts or when dependencies change
-  useEffect(() => {
-    const calculatedTotal = calculateTotalCost(service.costPerUser, service.numberOfLicenses);
-    if (calculatedTotal && calculatedTotal !== service.totalCost) {
-      onChange({ ...service, totalCost: calculatedTotal });
-    }
-  }, [service.costPerUser, service.numberOfLicenses]);
+  const content = (
+    <>
+      {!isOnly && (
+        <div className="flex justify-end mb-4">
+          {!isOnly && (
+            <button
+              onClick={onRemove}
+              className="p-1 text-gray-400 hover:text-red-600 rounded-md"
+              title="Remove service"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {!isOnly && (
+          <div>
+            <FormLabel>Module Name</FormLabel>
+            <FormInput
+              value={localService.name}
+              onChange={(e) => handleChange('name', e.target.value)}
+              placeholder="Enter module name"
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <FormLabel>License/Subscription Type</FormLabel>
+            <FormSelect
+              value={localService.licenseType}
+              onChange={(e) => handleChange('licenseType', e.target.value)}
+              options={LICENSE_TYPES}
+            />
+          </div>
+
+          <div>
+            <FormLabel>Pricing Model</FormLabel>
+            <FormSelect
+              value={localService.pricingModel}
+              onChange={(e) => handleChange('pricingModel', e.target.value)}
+              options={PRICING_MODELS}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <FormLabel>Cost per user per month ($)</FormLabel>
+            <FormInput
+              type="text"
+              value={isCostPerUserNA ? 'N/A' : localService.costPerUser}
+              onChange={(e) => handleChange('costPerUser', e.target.value)}
+              placeholder="Enter cost per user"
+              disabled={isCostPerUserNA}
+            />
+            <label className="flex items-center space-x-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={isCostPerUserNA}
+                onChange={handleCostPerUserNAChange}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Pricing not per user</span>
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <FormLabel>Number of Seats</FormLabel>
+            <FormInput
+              type="number"
+              value={localService.numberOfLicenses}
+              onChange={(e) => handleChange('numberOfLicenses', e.target.value)}
+              placeholder="Enter number of licenses"
+            />
+            <div className="h-[1.625rem]"></div>
+          </div>
+        </div>
+
+        <div>
+          <FormLabel>Total Cost ($)</FormLabel>
+          <FormInput
+            type="number"
+            value={localService.totalCost}
+            onChange={(e) => handleChange('totalCost', e.target.value)}
+            placeholder="Enter total cost"
+          />
+        </div>
+      </div>
+    </>
+  );
+
+  if (isOnly) {
+    return content;
+  }
 
   return (
-    <div className="space-y-6 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <h4 className="text-sm font-semibold text-gray-900">Service Details</h4>
-          <p className="text-xs text-gray-500">Configure service-specific information</p>
-        </div>
-        {!isOnly && (
-          <button
-            onClick={onRemove}
-            className="text-gray-400 hover:text-red-500 transition-colors"
-            title="Remove service"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      <div>
-        <FormLabel>Service Name</FormLabel>
-        <FormInput
-          value={service.name}
-          onChange={(e) => handleChange('name', e.target.value)}
-          placeholder="Enter service name"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-        <div>
-          <FormLabel>License/Subscription Type</FormLabel>
-          <FormSelect
-            value={service.licenseType}
-            onChange={(e) => handleChange('licenseType', e.target.value)}
-            options={LICENSE_TYPES}
-          />
-        </div>
-
-        <div>
-          <FormLabel>Pricing Model</FormLabel>
-          <FormSelect
-            value={service.pricingModel}
-            onChange={(e) => handleChange('pricingModel', e.target.value)}
-            options={PRICING_MODELS}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6">
-        <div>
-          <FormLabel>Cost per User ($)</FormLabel>
-          <FormInput
-            value={service.costPerUser}
-            onChange={(e) => handleChange('costPerUser', e.target.value)}
-            placeholder="Enter cost per user"
-          />
-        </div>
-
-        <div>
-          <FormLabel>Number of Licenses</FormLabel>
-          <FormInput
-            value={service.numberOfLicenses}
-            onChange={(e) => handleChange('numberOfLicenses', e.target.value)}
-            placeholder="Enter number of licenses"
-          />
-        </div>
-      </div>
-
-      <div>
-        <FormLabel>Total Cost ($)</FormLabel>
-        <FormInput
-          value={service.totalCost}
-          onChange={(e) => handleChange('totalCost', e.target.value)}
-          placeholder="Enter total cost"
-        />
-      </div>
+    <div className="bg-gray-50/70 border border-gray-200 rounded-lg p-4">
+      {content}
     </div>
   );
 }

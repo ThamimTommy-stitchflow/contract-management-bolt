@@ -1,22 +1,27 @@
-import { useCallback, useEffect } from 'react';
-import { SelectedApp } from '../types/app';
+import { useCallback, useState } from 'react';
 import { useContractStorage } from './useContractStorage';
-import { transformToContractRecords } from '../utils/contractTransformer';
+import { useCompany } from '../context/CompanyContext';
+import { contractService } from '../services/contracts';
 
-export function useContractSync(selectedApps: SelectedApp[]) {
+export function useContractSync() {
   const { setContracts } = useContractStorage();
+  const { company } = useCompany();
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sync contracts whenever selectedApps changes
-  useEffect(() => {
-    const contractRecords = transformToContractRecords(selectedApps);
-    setContracts(contractRecords);
-  }, [selectedApps, setContracts]);
+  const syncContracts = useCallback(async () => {
+    if (isSyncing || !company?.id) return;
+    
+    setIsSyncing(true);
+    try {
+      const freshContracts = await contractService.getCompanyContracts(company.id);
+      setContracts(freshContracts);
+    } catch (error) {
+      console.error('Sync failed:', error);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [company?.id, isSyncing, setContracts]);
 
-  // Manual sync function for explicit updates
-  const syncContracts = useCallback(() => {
-    const contractRecords = transformToContractRecords(selectedApps);
-    setContracts(contractRecords);
-  }, [selectedApps, setContracts]);
-
-  return { syncContracts };
+  return { syncContracts, isSyncing };
 }

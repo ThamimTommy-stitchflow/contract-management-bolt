@@ -1,14 +1,17 @@
 import React from 'react';
+import { useCompany } from '../../context/CompanyContext';
 
 export function AppHeader() {
+  const { company } = useCompany();
+
   return (
-    <div className="mb-12">
-      <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-        Stitchflow Contract Tracker
+    <div className="mb-6">
+      <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+        {company?.name}'s Managed Apps
       </h1>
-      <p className="text-base text-gray-600">
-        Keep your contracts all in one place and get reminded about your SaaS renewals.
-      </p>
+      {/* <p className="text-base text-gray-600">
+        Track all the apps your organization uses and keep tabs with the renewal cycles
+      </p> */}
     </div>
   );
 }

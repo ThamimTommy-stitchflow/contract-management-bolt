@@ -1,14 +1,20 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import { SearchResults } from './SearchResults';
+import { App } from '../../types/app';
 
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
+  onSelectApp: (app: App) => void;
+  filteredApps: App[];
+  onAddCustomApp: (app: string) => void;
+  isAddingApp?: boolean;
 }
 
-export function SearchBar({ value, onChange }: SearchBarProps) {
+export function SearchBar({ value, onChange, onSelectApp, filteredApps, onAddCustomApp, isAddingApp = false }: SearchBarProps) {
   return (
-    <div className="relative">
+    <div className="relative flex-1">
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
       <input
         type="text"
@@ -25,6 +31,13 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
           <X className="h-4 w-4" />
         </button>
       )}
+      <SearchResults
+        searchQuery={value}
+        filteredApps={filteredApps}
+        onSelectApp={onSelectApp}
+        onAddCustomApp={onAddCustomApp}
+        isAddingApp={isAddingApp}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 from supabase import Client
 from ..models.contract import (
     ContractCreate, 
@@ -33,6 +33,8 @@ class ContractService:
                 
                 contract['services'] = services_response.data
                 result.append(ContractResponse(**contract))
+
+            print("Result:", result)
             
             return result
         except Exception as e:
@@ -42,14 +44,40 @@ class ContractService:
     async def create_contract(self, contract: ContractCreate) -> ContractResponse:
         """Create a new contract with services"""
         try:
-            # Verify company_app_id exists
+            # Convert date strings from DD/MM/YYYY to YYYY-MM-DD if needed
+            if isinstance(contract.renewal_date, str):
+                try:
+                    date_obj = datetime.strptime(contract.renewal_date, '%d/%m/%Y')
+                    contract.renewal_date = date_obj.date().isoformat()
+                except ValueError:
+                    pass  # If date is already in correct format, skip conversion
+
+            if isinstance(contract.review_date, str):
+                try:
+                    date_obj = datetime.strptime(contract.review_date, '%d/%m/%Y')
+                    contract.review_date = date_obj.date().isoformat()
+                except ValueError:
+                    pass  # If date is already in correct format, skip conversion
+
+            # Verify company_app exists
             company_app = self.db.table('company_apps')\
                 .select('*')\
                 .eq('company_id', contract.company_id)\
+                .eq('app_id', contract.app_id)\
                 .execute()
             
             if not company_app.data:
-                raise ValueError("Invalid company_app_id")
+                raise ValueError("Invalid company_app combination")
+
+            # Check if contract already exists
+            existing_contract = self.db.table('contracts')\
+                .select('*')\
+                .eq('company_id', contract.company_id)\
+                .eq('app_id', contract.app_id)\
+                .execute()
+            
+            if existing_contract.data:
+                raise ValueError("Contract already exists for this app")
 
             # Create contract
             contract_data = contract.model_dump(exclude={'services'})
@@ -73,7 +101,6 @@ class ContractService:
                     .insert(services_data)\
                     .execute()
 
-            # Return complete contract
             return await self.get_contract(contract_id)
         except Exception as e:
             print(f"Error creating contract: {e}")
@@ -105,51 +132,86 @@ class ContractService:
             raise
 
     async def update_contract(
-        self, 
-        contract_id: str, 
+        self,
+        contract_id: str,
         company_id: str,
         contract_update: ContractUpdate
-    ) -> Optional[ContractResponse]:
-        """Update a contract and its services"""
+    ) -> ContractResponse:
+        """Update a contract"""
         try:
-            # Verify contract belongs to company
-            existing = await self.get_contract(contract_id)
-            if not existing or existing.company_id != company_id:
-                return None
-
-            update_data = contract_update.model_dump(
-                exclude={'services'}, 
-                exclude_unset=True
-            )
+            # Convert to dict and exclude None values
+            update_data = {
+                k: v for k, v in contract_update.model_dump().items() 
+                if v is not None
+            }
             
-            if update_data:
-                update_data['updated_at'] = datetime.utcnow()
-                self.db.table('contracts')\
-                    .update(update_data)\
-                    .eq('id', contract_id)\
-                    .execute()
+            # Convert dates to ISO format strings
+            if 'renewal_date' in update_data and isinstance(update_data['renewal_date'], date):
+                update_data['renewal_date'] = update_data['renewal_date'].isoformat()
+            if 'review_date' in update_data and isinstance(update_data['review_date'], date):
+                update_data['review_date'] = update_data['review_date'].isoformat()
+            
+            print("Update data:", update_data)
+            
+            # Update the contract
+            response = self.db.table('contracts')\
+                .update(update_data)\
+                .eq('id', contract_id)\
+                .eq('company_id', company_id)\
+                .execute()
+                
+            if not response.data:
+                return None
+                
+            # Fetch the updated contract with its services
+            contract_with_services = self.db.table('contracts')\
+                .select('*, services(*)') \
+                .eq('id', contract_id)\
+                .single()\
+                .execute()
+                
+            if not contract_with_services.data:
+                return None
+                
+            # Process the response to match ContractResponse format
+            contract_data = contract_with_services.data
+            # Ensure services is a list
+            contract_data['services'] = contract_data.get('services', [])
+            
+            return ContractResponse(**contract_data)
+            
+        except Exception as e:
+            print(f"Error updating contract: {str(e)}")
+            raise
 
-            # Update services if provided
-            if contract_update.services is not None:
-                # Delete existing services
-                self.db.table('services')\
-                    .delete()\
-                    .eq('contract_id', contract_id)\
-                    .execute()
+    async def update_contract_services(
+        self,
+        contract_id: str,
+        services_data: List[dict]
+    ) -> bool:
+        """Update services for a contract"""
+        try:
+            # Delete existing services
+            self.db.table('services')\
+                .delete()\
+                .eq('contract_id', contract_id)\
+                .execute()
+            
+            if services_data:
+                # Add contract_id to each service
+                services_with_id = [
+                    {**service, "contract_id": contract_id}
+                    for service in services_data
+                ]
                 
                 # Create new services
-                if contract_update.services:
-                    services_data = [
-                        {**service.model_dump(), "contract_id": contract_id}
-                        for service in contract_update.services
-                    ]
-                    self.db.table('services')\
-                        .insert(services_data)\
-                        .execute()
-
-            return await self.get_contract(contract_id)
+                self.db.table('services')\
+                    .insert(services_with_id)\
+                    .execute()
+            
+            return True
         except Exception as e:
-            print(f"Error updating contract: {e}")
+            print(f"Error updating services: {str(e)}")
             raise
 
     async def delete_contract(self, contract_id: str, company_id: str) -> bool:

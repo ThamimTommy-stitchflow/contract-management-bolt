@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-dotenv
 supabase
 python-jose[cryptography]
@@ -8,3 +8,9 @@ python-multipart
 pydantic
 pydantic-settings
 httpx
+openai
+PyPDF2
+tiktoken
+# Remove performance optimizations that are causing issues
+# uvloop==0.19.0
+# httptools==0.6.1
